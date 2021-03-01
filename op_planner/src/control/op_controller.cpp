@@ -396,7 +396,15 @@ int MotionControl::StrokeControllerUpdateForOpenPlannerInternalACC(const double&
 	e_v = (desired_velocity - CurrStatus.speed); //Target max velocity error
 
 	desiredAccel = m_pidAccelPedal.getTimeDependentPID(e_v, dt);
-	if(e_v < 0 && desiredAccel < 0.5)
+
+	if (e_v < 0) desiredAccel = 0; 
+	// The integrator in the PID AccelPedal Controller decreases only slowly if a high Intergrator 
+	// value is used. This blocks the brake pedal controller output actuation, even if e_v is negative.
+	//
+	// By setting desired Accel to 0 the car won't actuate brake and accelerator at the same time but
+	// will prioritize braking over accelerating.
+
+	if(e_v < 0 && desiredAccel < 0.5) 
 	{
 		desiredBrake = m_pidBrakePedal.getTimeDependentPID(-e_v, dt);
 		m_pidAccelPedal.Reset();
