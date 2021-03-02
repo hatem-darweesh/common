@@ -2342,31 +2342,52 @@ double PlanningHelpers::GetACCVelocityModelBased(const double& dt, const double&
 	}
 	else if(CurrBehavior.state == FOLLOW_STATE)
 	{
-		double crash_d = CurrBehavior.followDistance;
-		double safe_d = CurrBehavior.stopDistance;
+		double crash_d = CurrBehavior.followDistance;	// Distance to vehicle ahead
+		double safe_d = CurrBehavior.stopDistance;		// Precaculated stopping distance
 		double min_follow_distance = ctrlParams.min_safe_follow_distance*2.0 + CurrSpeed;
 		double diff = crash_d - safe_d;
 		double target_a = 0;
+
+		// NOTE: ctrlParams.min_safe_follow_distance -> max distance to avoid in op_common paramters
 
 		/**
 		 * Following Conditions
 		 */
 		if(diff < ctrlParams.min_safe_follow_distance*2.0)
+		// If the difference between the brake distance and the vehicle ahead is smaller than twice the safe distance  
+		// for following a vehicle, coasting/braking is triggered.
 		{
-			double brake_distance = crash_d - ctrlParams.min_safe_follow_distance*2.0;
+			double brake_distance = crash_d - ctrlParams.min_safe_follow_distance/2.0;
+			// brake_distance: The distance to the point in front we want to stop at (not the bumper of the vehicle
+			// ahead). 
 
 			if(brake_distance > 0)
+			// If the brake distance is positive we can use the targeted average deceleration boundary
 			{
-				target_a = (-CurrSpeed*CurrSpeed)/(2.0*brake_distance);
+				double currentBrakeDistance = (-CurrSpeed*CurrSpeed/(2*vehicleInfo.max_deceleration));
+				if (currentBrakeDistance < 2)
+				// Intentional Stop:
+				// Start intentional stop braking maneuvre if stopping distance is smaller than 3 meter. This stops the 
+				// recalulation of the stopping trajectory (Optimal Control Strategy).
+				{
+					target_a = vehicleInfo.max_deceleration;
+				}
+				// use following in normal traffic
+				else{
+					target_a = (-CurrSpeed*CurrSpeed)/(2.0*(brake_distance));
+				}
 			}
 			else
+			// Emergency Stop
 			{
 				target_a = -9.8*4; //stop with -4G
 			}
 		}
 		else if(diff > (ctrlParams.min_safe_follow_distance*2.0 + CurrSpeed))
+		// adding current speed creates an offset between accelration and braking. Considered like a coasting mode 
+		// before braking, preventing state loops.
 		{
-			target_a = vehicleInfo.max_acceleration;
+				target_a = vehicleInfo.max_acceleration;
 		}
 
 		/**
@@ -2391,11 +2412,15 @@ double PlanningHelpers::GetACCVelocityModelBased(const double& dt, const double&
 		}
 
 		desiredVel = (target_a * dt) + CurrSpeed;
-
-		if(CurrSpeed < 1.0 && CurrBehavior.maxVelocity > 1.0 && desiredVel > 0)
-		{
-			desiredVel += 1.0;
-		}
+		
+		// -- Note --	
+		// This function overrules the whole following model, which causes acceleration output
+		// after the stoping position of the vehicle, resulting in a cirtical braking maneuvre
+		//
+		// if(CurrSpeed < 1.0 && CurrBehavior.maxVelocity > 1.0 && desiredVel > 0)
+		// {
+		// 	desiredVel += 1.0;
+		// }
 
 		//std::cout << "Follow: safe_d: " <<  safe_d << ", follow_d: " << crash_d << ", diff: " << diff << ", accel-decel: " << target_a << ", desiredVel: " << desiredVel << std::endl;
 	}
