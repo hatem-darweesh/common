@@ -193,8 +193,14 @@ void DecisionMaker::InitBehaviorStates()
 
  	PreCalculatedConditions* pValues = m_pCurrentBehaviorState->GetCalcParams();
 
- 	if(m_CarInfo.max_deceleration != 0)
- 		pValues->minStoppingDistance = -pow(car_state.speed, 2)/(2.0*m_CarInfo.max_deceleration) + m_params.additionalBrakingDistance;
+ 	if(m_CarInfo.max_deceleration != 0){ 
+		double systemDelay = 2; // brake control latency in seconds
+ 		pValues->minStoppingDistance = -pow(car_state.speed, 2)/(2.0*m_CarInfo.max_deceleration) 
+		 + m_params.additionalBrakingDistance 
+		 + car_state.speed*systemDelay;
+		 // adding system delay to account for additonal stopping distance, needed by the brake contoller, which can't 
+		 // decellerate with 1.5m/s^2 at once.
+	}
  	else
  		pValues->minStoppingDistance = m_params.horizonDistance;
 
@@ -308,7 +314,9 @@ void DecisionMaker::InitBehaviorStates()
 
   	distanceToClosestStopLine = PlanningHelpers::GetDistanceToClosestStopLineAndCheck(m_TotalPaths.at(pValues->iCurrSafeLane), state, m_params.giveUpDistance, stopLineID, stopSignID, trafficLightID) - critical_long_front_distance;
 
- 	if(distanceToClosestStopLine > m_params.giveUpDistance && distanceToClosestStopLine < (pValues->minStoppingDistance + 1.0))
+ 	if(		distanceToClosestStopLine > m_params.giveUpDistance 
+	 	&& 	distanceToClosestStopLine < (pValues->minStoppingDistance + 4.0 )) 	// increased the stop distance slightly  
+		 																		// to prevent state change to FORWARD
  	{
  		if(m_pCurrentBehaviorState->m_pParams->enableTrafficLightBehavior)
  		{

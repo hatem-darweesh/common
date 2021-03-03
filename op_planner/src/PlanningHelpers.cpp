@@ -2323,20 +2323,35 @@ double PlanningHelpers::GetACCVelocityModelBased(const double& dt, const double&
 	}
 	else if(CurrBehavior.state == STOPPING_STATE || CurrBehavior.state == TRAFFIC_LIGHT_STOP_STATE || CurrBehavior.state == STOP_SIGN_STOP_STATE)
 	{
-		double deceleration_critical = vehicleInfo.max_deceleration;
-		double distance_to_stop = CurrBehavior.stopDistance ;
+		double target_a = vehicleInfo.max_deceleration;
+		double distance_to_stop = CurrBehavior.stopDistance;
+
+		// start deceleration
 		if(distance_to_stop != 0)
 		{
-			deceleration_critical = (-CurrSpeed*CurrSpeed)/(2.0*distance_to_stop);
+			target_a = (-CurrSpeed*CurrSpeed)/(2.0*distance_to_stop);
 		}
 
-		deceleration_critical = deceleration_critical * ctrlParams.brakePushRatio;
-
-		desiredVel = (deceleration_critical * dt) + CurrSpeed;
-		if(CurrSpeed < 1.0)
+		// start deceleration to fullstop with max decelration. (Stop recalculating the braking trajectory)
+		double currentBrakeDistance = (-CurrSpeed*CurrSpeed/(2*vehicleInfo.max_deceleration));
+		if (currentBrakeDistance < 2)
 		{
-			desiredVel = 0;
+			target_a = vehicleInfo.max_deceleration;
 		}
+
+		/**
+		 * Apply brake push factors
+		 */
+		target_a = target_a * ctrlParams.brakePushRatio;
+	
+
+		desiredVel = (target_a * dt) + CurrSpeed;
+
+		// NOTE: Creates acceleration peak. For standstill breaking we can use the max deceleration above.
+		// if(CurrSpeed < 0.1) 
+		// {
+		// 	desiredVel = 0;
+		// }
 
 		//std::cout << "STOP: stop_distance: " <<  distance_to_stop << ", desiredVel: " << desiredVel << ", Deceleration: " << deceleration_critical << ", dt: " << dt << std::endl;
 	}
