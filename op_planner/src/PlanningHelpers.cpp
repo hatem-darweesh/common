@@ -2372,7 +2372,7 @@ double PlanningHelpers::GetACCVelocityModelBased(const double& dt, const double&
 		// If the difference between the brake distance and the vehicle ahead is smaller than twice the safe distance  
 		// for following a vehicle, coasting/braking is triggered.
 		{
-			double brake_distance = crash_d - ctrlParams.min_safe_follow_distance/2.0;
+			double brake_distance = crash_d - ctrlParams.min_safe_follow_distance/4.0;
 			// brake_distance: The distance to the point in front we want to stop at (not the bumper of the vehicle
 			// ahead). 
 
@@ -2380,7 +2380,7 @@ double PlanningHelpers::GetACCVelocityModelBased(const double& dt, const double&
 			// If the brake distance is positive we can use the targeted average deceleration boundary
 			{
 				double currentBrakeDistance = (-CurrSpeed*CurrSpeed/(2*vehicleInfo.max_deceleration));
-				if (currentBrakeDistance < 2)
+				if (currentBrakeDistance < 0.5)
 				// Intentional Stop:
 				// Start intentional stop braking maneuvre if stopping distance is smaller than 3 meter. This stops the 
 				// recalulation of the stopping trajectory (Optimal Control Strategy).
