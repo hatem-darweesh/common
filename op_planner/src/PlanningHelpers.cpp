@@ -2327,7 +2327,7 @@ double PlanningHelpers::GetACCVelocityModelBased(const double& dt, const double&
 		double distance_to_stop = CurrBehavior.stopDistance;
 		double crash_d = CurrBehavior.followDistance;	// Distance to vehicle ahead
 		
-		if(distance_to_stop > crash_d)
+		if(distance_to_stop > crash_d+1.0)
 		// Stop at the stopline
 		{
 			target_a = (-CurrSpeed*CurrSpeed)/(2.0*distance_to_stop);

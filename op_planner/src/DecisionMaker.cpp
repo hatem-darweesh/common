@@ -312,11 +312,12 @@ void DecisionMaker::InitBehaviorStates()
  	double distanceToClosestStopLine = 0;
  	bool bGreenTrafficLight = true;
 
+	double trafficLightDetectionAdditonalRange = 20.0;
+
   	distanceToClosestStopLine = PlanningHelpers::GetDistanceToClosestStopLineAndCheck(m_TotalPaths.at(pValues->iCurrSafeLane), state, m_params.giveUpDistance, stopLineID, stopSignID, trafficLightID) - critical_long_front_distance;
 
  	if(		distanceToClosestStopLine > m_params.giveUpDistance 
-	 	&& 	distanceToClosestStopLine < (pValues->minStoppingDistance + 4.0 )) 	// increased the stop distance slightly  
-		 																		// to prevent state change to FORWARD
+	 	&& 	distanceToClosestStopLine < (pValues->minStoppingDistance + trafficLightDetectionAdditonalRange ))
  	{
  		if(m_pCurrentBehaviorState->m_pParams->enableTrafficLightBehavior)
  		{
