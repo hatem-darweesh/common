@@ -309,13 +309,22 @@ void DecisionMaker::InitBehaviorStates()
  	int stopLineID = -1;
  	int stopSignID = -1;
  	int trafficLightID = -1;
+ 	double plain_distanceToClosestStopLine = 0;
  	double distanceToClosestStopLine = 0;
  	bool bGreenTrafficLight = true;
 
 	double trafficLightDetectionAdditonalRange = 20.0;
+	// make sure we detect the traffic light early 
 
-  	distanceToClosestStopLine = PlanningHelpers::GetDistanceToClosestStopLineAndCheck(m_TotalPaths.at(pValues->iCurrSafeLane), state, m_params.giveUpDistance, stopLineID, stopSignID, trafficLightID) - critical_long_front_distance;
+  	plain_distanceToClosestStopLine = 
+	  PlanningHelpers::GetDistanceToClosestStopLineAndCheck(m_TotalPaths.at(pValues->iCurrSafeLane), 
+	  														state, 
+															m_params.giveUpDistance, 
+															stopLineID, 
+															stopSignID, 
+															trafficLightID);
 
+	distanceToClosestStopLine = plain_distanceToClosestStopLine - critical_long_front_distance;	
  	if(		distanceToClosestStopLine > m_params.giveUpDistance 
 	 	&& 	distanceToClosestStopLine < (pValues->minStoppingDistance + trafficLightDetectionAdditonalRange ))
  	{
@@ -456,6 +465,16 @@ void DecisionMaker::InitBehaviorStates()
 
 	currentBehavior.minVelocity		= 0;
 	currentBehavior.stopDistance 	= preCalcPrams->distanceToStop();
+
+	// get distance to stopline
+	if (preCalcPrams->stoppingDistances.size() == 4) // position 4 is traffic light/sign stopline
+	{
+		currentBehavior.stopLineDistance = preCalcPrams->stoppingDistances.at(3);
+	}
+	else{
+		currentBehavior.stopLineDistance = -1;
+	}
+
 	currentBehavior.followVelocity 	= preCalcPrams->velocityOfNext;
 	if(preCalcPrams->iPrevSafeTrajectory<0 || preCalcPrams->iPrevSafeTrajectory >= m_LanesRollOuts.at(m_iCurrentTotalPathId).size())
 	{

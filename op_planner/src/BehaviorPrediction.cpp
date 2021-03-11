@@ -298,7 +298,7 @@ void BehaviorPrediction::SamplesFreshParticles(ObjParticles* pParts)
 			if(g_PredParams.bEnableParking)
 				int n_ps_p = TrajectoryTracker::max_particles_number - pParts->m_TrajectoryTracker.at(t)->nAlivePark;
 
-			std::cout << ">>>>> Total Size Before: " <<pParts->m_TrajectoryTracker.at(t)->m_CurrParts.size() << std::endl;
+			// std::cout << ">>>>> Total Size Before: " <<pParts->m_TrajectoryTracker.at(t)->m_CurrParts.size() << std::endl;
 			for(unsigned int i=0; i < TrajectoryTracker::total_particles_number; i++)
 			{
 				Particle p_new = p;
@@ -323,7 +323,7 @@ void BehaviorPrediction::SamplesFreshParticles(ObjParticles* pParts)
 				pParts->m_TrajectoryTracker.at(t)->InsertNewParticle(p_new);
 			}
 
-			std::cout << ">>>>> Total Size After: " <<pParts->m_TrajectoryTracker.at(t)->m_CurrParts.size() << std::endl;
+			// std::cout << ">>>>> Total Size After: " <<pParts->m_TrajectoryTracker.at(t)->m_CurrParts.size() << std::endl;
 			//if(pBestF == nullptr && pBestS == nullptr && pBestY == nullptr && pBestP == nullptr)
 //			{
 //			    Particle p_new = p;

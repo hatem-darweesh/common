@@ -925,13 +925,14 @@ public:
 	STATE_TYPE state;
 	double maxVelocity;
 	double minVelocity;
-	double stopDistance;
+	double stopDistance; // Distance to closest stopping point
 	double followVelocity;
 	double followDistance;
 	LIGHT_INDICATOR indicator;
 	bool bNewPlan;
 	int iTrajectory;
 	int iLane;
+	double stopLineDistance; // Distance to closest stopline
 
 
 	BehaviorState()
@@ -946,6 +947,7 @@ public:
 		bNewPlan = false;
 		iTrajectory = -1;
 		iLane = -1;
+		stopLineDistance = 0;
 	}
 
 };
@@ -1163,6 +1165,8 @@ public:
 
 	double distanceToStop()
 	{
+		// stopping distances are calculated in "CalculateImportantParametersForDecisionMaking". The closest stopping
+		// distance is located in this fuction.
 		if(stoppingDistances.size()==0) return 0;
 		double minS = stoppingDistances.at(0);
 		for(unsigned int i=0; i< stoppingDistances.size(); i++)
