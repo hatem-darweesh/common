@@ -613,7 +613,7 @@ PlannerHNS::ExtendedVehicleState MotionControl::DoOneStep(const double& dt, cons
 				}
 			}
 		}
-		else
+		else // Pedal stroke mode 
 		{
 			if(m_HyperParams.bUseInternalACC)
 			{
@@ -638,10 +638,12 @@ PlannerHNS::ExtendedVehicleState MotionControl::DoOneStep(const double& dt, cons
 
 		if(m_HyperParams.bEnableSteeringMode)
 		{
+			// steering angle output
 			SteerControllerUpdate(dt, m_ForwardSimulationPoint, m_FollowMePoint, vehicleState, behavior, m_LateralError, desiredState.steer);
 		}
 		else
 		{
+			// steering torque output
 			TorqueControllerUpdate(dt, m_ForwardSimulationPoint, m_FollowMePoint, vehicleState, behavior, m_LateralError, desiredState.steer_torque);
 		}
 

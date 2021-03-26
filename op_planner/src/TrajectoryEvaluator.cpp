@@ -52,11 +52,18 @@ TrajectoryCost TrajectoryEvaluator::doOneStep(const std::vector<std::vector<WayP
 		params.rollOutNumber = 0;
 	}
 
-	double critical_lateral_distance = car_info.width / 2.0 + params.horizontalSafetyDistancel;
-  double critical_long_front_distance = car_info.wheel_base / 2.0 + car_info.length / 2.0
-      + params.verticalSafetyDistance;
-  double critical_long_back_distance = car_info.length / 2.0 + params.verticalSafetyDistance
-      - car_info.wheel_base / 2.0;
+	double critical_lateral_distance =    car_info.width / 2.0 
+                                      + params.horizontalSafetyDistancel;
+
+  double critical_long_front_distance = car_info.wheel_base / 2.0 
+                                      + car_info.length / 2.0 
+                                      + params.verticalSafetyDistance 
+                                      + car_info.front_length;
+
+  double critical_long_back_distance = car_info.length / 2.0 
+                                      + params.verticalSafetyDistance
+                                      - car_info.wheel_base / 2.0
+                                      + car_info.back_length;
 
 	int curr_index = -1;
 	if(prev_curr_index >=0 && prev_curr_index < roll_outs.size())
@@ -549,7 +556,13 @@ TrajectoryCost TrajectoryEvaluator::findBestTrajectory(const PlanningParams& par
   return best_trajectory;
 }
 
-void TrajectoryEvaluator::calculateDistanceCosts(const PlanningParams& params, const double& c_lateral_d, const std::vector<std::vector<WayPoint> >& roll_outs, const std::vector<WayPoint>& contour_points, const std::vector<WayPoint>& trajectory_points, std::vector<TrajectoryCost>& trajectory_costs, std::vector<WayPoint>& collision_points)
+void TrajectoryEvaluator::calculateDistanceCosts(const PlanningParams& params, 
+                                              const double& c_lateral_d, 
+                                              const std::vector<std::vector<WayPoint> >& roll_outs, 
+                                              const std::vector<WayPoint>& contour_points, 
+                                              const std::vector<WayPoint>& trajectory_points, 
+                                              std::vector<TrajectoryCost>& trajectory_costs, 
+                                              std::vector<WayPoint>& collision_points)
 {
   int center_index = params.rollOutNumber / 2;
   for(unsigned int i=0; i < roll_outs.size(); i++)

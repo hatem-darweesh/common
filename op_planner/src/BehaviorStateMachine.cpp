@@ -20,6 +20,8 @@ BehaviorStateMachine::BehaviorStateMachine(PlanningParams* pParams, PreCalculate
 	decisionMakingTime		= 0.0;
 	decisionMakingCount		= 1;
 	m_zero_velocity 		= 0.1;
+	bFullyBlock_latch_cnt 	= 0;
+	bInsideIntersection 	= false;
 
 	if(!pPreCalcVal)
 		m_pCalculatedValues = new PreCalculatedConditions();
@@ -354,6 +356,9 @@ BehaviorStateMachine* ForwardStateII::GetNextState()
 				&& pCParams->currentTrafficLightID != pCParams->prevTrafficLightID)
 			return FindBehaviorState(TRAFFIC_LIGHT_STOP_STATE);
 
+	else if(pCParams->bInsideIntersection && pCParams->bFullyBlock)
+		return FindBehaviorState(YIELDING_STATE);
+
 	else if(m_pParams->enableStopSignBehavior
 			&& pCParams->currentStopSignID > 0
 			&& pCParams->currentStopSignID != pCParams->prevStopSignID)
@@ -376,12 +381,46 @@ BehaviorStateMachine* ForwardStateII::GetNextState()
 		return FindBehaviorState(this->m_Behavior);
 }
 
+
+BehaviorStateMachine* YieldingStateII::GetNextState()
+{
+	PreCalculatedConditions* pCParams = GetCalcParams();
+
+	// safety margin before releasing fully blocked state (compensate false negatives)
+	if (!pCParams->bFullyBlock)	bFullyBlock_latch_cnt++;
+	else bFullyBlock_latch_cnt = 0;
+	if (bFullyBlock_latch_cnt > 10) {
+		bDelayedFullBlockRelease = true;
+		bFullyBlock_latch_cnt = 0;
+	} else bDelayedFullBlockRelease = false;
+
+	if(!pCParams->bInsideIntersection || bDelayedFullBlockRelease)
+	// if(!pCParams->bInsideIntersection || !pCParams->bFullyBlock)
+		return FindBehaviorState(FORWARD_STATE);
+
+	else
+		return FindBehaviorState(this->m_Behavior); // return and reset
+}
+
+
 BehaviorStateMachine* FollowStateII::GetNextState()
 {
 	PreCalculatedConditions* pCParams = GetCalcParams();
 
+	// safety margin before releasing fully blocked state (compensate false negatives)
+	if (!pCParams->bFullyBlock)	bFullyBlock_latch_cnt++;
+	else bFullyBlock_latch_cnt = 0;
+	if (bFullyBlock_latch_cnt > 20) {
+		bDelayedFullBlockRelease = true;
+		bFullyBlock_latch_cnt = 0;
+	} else bDelayedFullBlockRelease = false;
+
 	if(pCParams->currentGoalID != pCParams->prevGoalID)
 		return FindBehaviorState(GOAL_STATE);
+	
+	else if(pCParams->bInsideIntersection && pCParams->bFullyBlock){
+		return FindBehaviorState(YIELDING_STATE);
+	}
 
 	else if(m_pParams->enableTrafficLightBehavior
 				&& pCParams->currentTrafficLightID > 0
@@ -400,7 +439,7 @@ BehaviorStateMachine* FollowStateII::GetNextState()
 			&& pCParams->iCurrSafeTrajectory != pCParams->iPrevSafeTrajectory)
 		return FindBehaviorState(OBSTACLE_AVOIDANCE_STATE);
 
-	else if(!pCParams->bFullyBlock)
+	else if(bDelayedFullBlockRelease)
 		return FindBehaviorState(FORWARD_STATE);
 
 	else

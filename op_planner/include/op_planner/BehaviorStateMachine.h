@@ -29,6 +29,9 @@ public:
 	double decisionMakingTime;
 	int decisionMakingCount;
 	double m_zero_velocity;
+	double bFullyBlock_latch_cnt;
+	bool bDelayedFullBlockRelease;
+	bool bInsideIntersection;
 
 	PreCalculatedConditions* GetCalcParams()
 	{
@@ -112,6 +115,16 @@ public:
 	FollowStateII(PlanningParams* pParams, PreCalculatedConditions* pPreCalcVal, BehaviorStateMachine* pNextState)
 	: BehaviorStateMachine(pParams, pPreCalcVal, pNextState){m_Behavior = FOLLOW_STATE;}
 	virtual ~FollowStateII(){}
+	virtual BehaviorStateMachine* GetNextState();
+
+};
+
+class YieldingStateII : public BehaviorStateMachine
+{
+public:
+	YieldingStateII(PlanningParams* pParams, PreCalculatedConditions* pPreCalcVal, BehaviorStateMachine* pNextState)
+	: BehaviorStateMachine(pParams, pPreCalcVal, pNextState){m_Behavior = YIELDING_STATE;}
+	virtual ~YieldingStateII(){}
 	virtual BehaviorStateMachine* GetNextState();
 
 };

@@ -933,6 +933,7 @@ public:
 	int iTrajectory;
 	int iLane;
 	double stopLineDistance; // Distance to closest stopline
+	BOUNDARY_TYPE boundaryType;
 
 
 	BehaviorState()
@@ -948,6 +949,7 @@ public:
 		iTrajectory = -1;
 		iLane = -1;
 		stopLineDistance = 0;
+		boundaryType = NORMAL_ROAD_BOUNDARY;
 	}
 
 };
@@ -1161,6 +1163,7 @@ public:
 	std::vector<double> stoppingDistances;
 
 	double 				distanceToGoal;
+	bool				bInsideIntersection;
 
 
 	double distanceToStop()

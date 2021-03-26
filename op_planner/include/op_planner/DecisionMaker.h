@@ -42,6 +42,7 @@ public:
 	MissionAccomplishedStateII* m_pMissionCompleteState;
 	GoalStateII* m_pGoalState;
 	FollowStateII* m_pFollowState;
+	YieldingStateII* m_pYieldingState;
 	StopSignStopStateII* m_pStopSignStopState;
 	StopSignWaitStateII* m_pStopSignWaitState;
 	StopStateII* m_pStopState;
@@ -64,7 +65,8 @@ public:
 	void UpdateAvoidanceParams(bool enable_swerve, int roll_out_numbers);
 	void CalculateImportantParameterForDecisionMaking(const VehicleState& car_state,
 			const bool& bEmergencyStop, const std::vector<TrafficLight>& detectedLights,
-			const TrajectoryCost& bestTrajectory);
+			const TrajectoryCost& bestTrajectory,
+			const BehaviorState beh);
 	void SetNewGlobalPath(const std::vector<std::vector<WayPoint> >& globalPath);
 
 	BehaviorState DoOneStep(

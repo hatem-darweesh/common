@@ -123,6 +123,7 @@ void DecisionMaker::InitBehaviorStates()
 	m_pInitState = new InitStateII(m_pStopState->m_pParams, m_pStopState->GetCalcParams(), m_pGoToGoalState);
 
 	m_pFollowState = new FollowStateII(m_pStopState->m_pParams, m_pStopState->GetCalcParams(), m_pGoToGoalState);
+	m_pYieldingState = new YieldingStateII(m_pStopState->m_pParams, m_pStopState->GetCalcParams(), m_pGoToGoalState);
 	m_pAvoidObstacleState = new SwerveStateII(m_pStopState->m_pParams, m_pStopState->GetCalcParams(), m_pGoToGoalState);
 	m_pStopSignWaitState = new StopSignWaitStateII(m_pStopState->m_pParams, m_pStopState->GetCalcParams(), m_pGoToGoalState);
 	m_pStopSignStopState = new StopSignStopStateII(m_pStopState->m_pParams, m_pStopState->GetCalcParams(), m_pStopSignWaitState);
@@ -130,6 +131,7 @@ void DecisionMaker::InitBehaviorStates()
 	m_pTrafficLightWaitState = new TrafficLightWaitStateII(m_pStopState->m_pParams, m_pStopState->GetCalcParams(), m_pGoToGoalState);
 	m_pTrafficLightStopState = new TrafficLightStopStateII(m_pStopState->m_pParams, m_pStopState->GetCalcParams(), m_pGoToGoalState);
 
+	// connect pointers for state transitions
 	m_pStopState->InsertNextState(m_pGoToGoalState);
 	m_pStopState->InsertNextState(m_pGoalState);
 	m_pStopState->decisionMakingCount = 0;
@@ -138,6 +140,7 @@ void DecisionMaker::InitBehaviorStates()
 	m_pGoToGoalState->InsertNextState(m_pStopSignStopState);
 	m_pGoToGoalState->InsertNextState(m_pTrafficLightStopState);
 	m_pGoToGoalState->InsertNextState(m_pFollowState);
+	m_pGoToGoalState->InsertNextState(m_pYieldingState);
 	m_pGoToGoalState->InsertNextState(m_pStopState);
 	m_pGoToGoalState->decisionMakingCount = 0;//m_params.nReliableCount;
 
@@ -146,18 +149,26 @@ void DecisionMaker::InitBehaviorStates()
 	m_pStopSignWaitState->decisionMakingTime = m_params.stopSignStopTime;
 	m_pStopSignWaitState->InsertNextState(m_pStopSignStopState);
 	m_pStopSignWaitState->InsertNextState(m_pGoalState);
+	m_pStopSignWaitState->InsertNextState(m_pYieldingState);
 
 
 	m_pTrafficLightStopState->InsertNextState(m_pTrafficLightWaitState);
 
 	m_pTrafficLightWaitState->InsertNextState(m_pTrafficLightStopState);
 	m_pTrafficLightWaitState->InsertNextState(m_pGoalState);
+	m_pTrafficLightWaitState->InsertNextState(m_pYieldingState);
 
 	m_pFollowState->InsertNextState(m_pAvoidObstacleState);
 	m_pFollowState->InsertNextState(m_pStopSignStopState);
 	m_pFollowState->InsertNextState(m_pTrafficLightStopState);
 	m_pFollowState->InsertNextState(m_pGoalState);
+	m_pFollowState->InsertNextState(m_pYieldingState);
 	m_pFollowState->decisionMakingCount = 0;//m_params.nReliableCount;
+
+	m_pYieldingState->InsertNextState(m_pGoToGoalState);
+	m_pYieldingState->InsertNextState(m_pFollowState);
+	m_pYieldingState->InsertNextState(m_pGoalState);
+	m_pYieldingState->decisionMakingCount = 0;
 
 	m_pInitState->decisionMakingCount = 0;//m_params.nReliableCount;
 
@@ -187,11 +198,16 @@ void DecisionMaker::InitBehaviorStates()
 
  void DecisionMaker::CalculateImportantParameterForDecisionMaking(const PlannerHNS::VehicleState& car_state,
 		 const bool& bEmergencyStop, const std::vector<TrafficLight>& detectedLights,
-		 const TrajectoryCost& bestTrajectory)
+		 const TrajectoryCost& bestTrajectory,
+		 const BehaviorState beh)
  {
 	 if(m_TotalPaths.size() == 0) return;
 
  	PreCalculatedConditions* pValues = m_pCurrentBehaviorState->GetCalcParams();
+
+	if(beh.boundaryType == INTERSECTION_BOUNDARY) {
+		pValues->bInsideIntersection = true;
+	}
 
  	if(m_CarInfo.max_deceleration != 0){ 
 		double systemDelay = 2; // brake control latency in seconds
@@ -203,6 +219,8 @@ void DecisionMaker::InitBehaviorStates()
 	}
  	else
  		pValues->minStoppingDistance = m_params.horizonDistance;
+
+	// std::cout << "minStoppingDistance: " << pValues->minStoppingDistance << std::endl;
 
  	pValues->stoppingDistances.clear();
  	pValues->stoppingDistances.push_back(m_params.horizonDistance);
@@ -601,6 +619,10 @@ void DecisionMaker::InitBehaviorStates()
 		//std::cout << "Desired Vel: " << desiredVelocity << std::endl;
 
 	}
+	else if (beh.state == YIELDING_STATE)
+	{
+		desiredVelocity = 0;
+	}
 	else if(beh.state == FORWARD_STATE || beh.state == OBSTACLE_AVOIDANCE_STATE )
 	{
 
@@ -663,6 +685,11 @@ void DecisionMaker::InitBehaviorStates()
 	 state = currPose;
 	 m_TotalPaths.clear();
 
+	if (currPose.boundaryId == 7)
+	{
+		beh.boundaryType = INTERSECTION_BOUNDARY;
+	}
+
 	if(m_prev_index.size() != m_TotalOriginalPaths.size())
 	{
 		m_prev_index.clear();
@@ -687,7 +714,7 @@ void DecisionMaker::InitBehaviorStates()
 
 	//UpdateCurrentLane(m_params.maxLaneSearchDistance);
 
-	CalculateImportantParameterForDecisionMaking(vehicleState, bEmergencyStop, trafficLight, tc);
+	CalculateImportantParameterForDecisionMaking(vehicleState, bEmergencyStop, trafficLight, tc, beh);
 
 	beh = GenerateBehaviorState(vehicleState);
 

@@ -98,6 +98,7 @@ visualization_msgs::Marker ROSHelpers::CreateGenMarker(const double& x, const do
 	mkr.header.stamp = ros::Time();
 	mkr.ns = ns;
 	mkr.type = type;
+	mkr.lifetime = ros::Duration(0.1); // make old path disappear
 	mkr.action = visualization_msgs::Marker::ADD;
 	if(type != visualization_msgs::Marker::LINE_LIST && type != visualization_msgs::Marker::LINE_STRIP && type != visualization_msgs::Marker::TEXT_VIEW_FACING)
 	{
@@ -2306,6 +2307,8 @@ PlannerHNS::BehaviorState ROSHelpers::ConvertAutowareWaypointToBehaviorState(con
 		behavior.state = PlannerHNS::OBSTACLE_AVOIDANCE_STATE;
 	else if(state_point.wpstate.event_state == PlannerHNS::FINISH_STATE)
 		behavior.state = PlannerHNS::FINISH_STATE;
+	else if(state_point.wpstate.event_state == PlannerHNS::YIELDING_STATE)
+		behavior.state = PlannerHNS::YIELDING_STATE;		
 
 
 	return behavior;
