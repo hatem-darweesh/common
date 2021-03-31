@@ -69,6 +69,8 @@ public:
 			const BehaviorState beh);
 	void SetNewGlobalPath(const std::vector<std::vector<WayPoint> >& globalPath);
 
+	int getWayAreaID(PlannerHNS::RoadNetwork m_Map);
+
 	BehaviorState DoOneStep(
 			const double& dt,
 			const PlannerHNS::WayPoint currPose,

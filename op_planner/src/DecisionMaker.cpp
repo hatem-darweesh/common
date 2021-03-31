@@ -735,4 +735,36 @@ void DecisionMaker::InitBehaviorStates()
 	return beh;
  }
 
+int DecisionMaker::getWayAreaID(RoadNetwork m_Map)
+{
+	// --- find boundary/area ---
+	int currentLaneID = this->m_LanesRollOuts.at(0).at(0).at(0).laneId;
+
+	for (int iter = 0; iter<m_Map.roadSegments.at(0).Lanes.size(); iter++)
+	// iterate torugh all lanes inside the map
+	{
+		if (m_Map.roadSegments.at(0).Lanes.at(iter).id == currentLaneID)
+		// find the lane, the vehicle is using
+		{
+			// getClosestWaypointID
+			double waypointPosX, waypointPosY, temp_distance;
+			int closestPointID = 0;
+			double rel_distance = 999999;
+			double vehiclePosX = this->m_LanesRollOuts.at(0).at(0).at(0).pos.x;
+			double vehiclePosY = this->m_LanesRollOuts.at(0).at(0).at(0).pos.y;
+			for (int wp_cnt = 0; wp_cnt < m_Map.roadSegments.at(0).Lanes.at(iter).points.size(); wp_cnt++){
+				waypointPosX = m_Map.roadSegments.at(0).Lanes.at(iter).points.at(wp_cnt).pos.x;
+				waypointPosY = m_Map.roadSegments.at(0).Lanes.at(iter).points.at(wp_cnt).pos.y;
+				temp_distance = abs(waypointPosX-vehiclePosX)+abs(waypointPosY-vehiclePosY);
+				if (temp_distance < rel_distance){
+					rel_distance = temp_distance;
+					closestPointID = wp_cnt;
+				}
+			}
+			return m_Map.roadSegments.at(0).Lanes.at(iter).points.at(closestPointID).boundaryId;
+		} 
+	}
+	return 0;
+}
+
 } /* namespace PlannerHNS */
