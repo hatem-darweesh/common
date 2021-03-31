@@ -2328,6 +2328,7 @@ double PlanningHelpers::GetACCVelocityModelBased(const double& dt, const double&
 		double distance_to_follow = CurrBehavior.followDistance;	// Distance to vehicle ahead
 		double distance_to_stopline = CurrBehavior.stopLineDistance;
 		double diff = distance_to_follow - distance_to_stop;
+		double stop_distance_traffic_queue = 0.0; 					// Distance behind car ahead in traffic light queue
 
 		bool validObjectDistanceToFollow = true;
 
@@ -2346,30 +2347,39 @@ double PlanningHelpers::GetACCVelocityModelBased(const double& dt, const double&
 		else 
 		// Stopping behind a vehicle in front of us, which is waiting at the stopline (FOLLOW MODE)
 		{
-			// ToDO: Remove code duplicates from FOLLOW MODE!
 			if(diff < ctrlParams.min_safe_follow_distance)
 			// If the difference between the brake distance and the vehicle ahead is smaller than twice the safe distance  
 			// for following a vehicle, coasting/braking is triggered.
 			{
-				double brake_distance = distance_to_follow - ctrlParams.min_safe_follow_distance/2.0;
+				double brake_distance = distance_to_follow - stop_distance_traffic_queue;
 				// brake_distance: The distance to the point in front we want to stop at (not the bumper of the vehicle
 				// ahead). 
 
 				if(brake_distance > 0)
 				// If the brake distance is positive we can use the targeted average deceleration boundary
 				{
-					double currentBrakeDistance = (-CurrSpeed*CurrSpeed/(2*vehicleInfo.max_deceleration));
-					if (currentBrakeDistance < 0.5)
+					if (brake_distance < stop_distance_traffic_queue)
 					// Intentional Stop:
-					// Start intentional stop braking maneuvre if stopping distance is smaller than 3 meter. This stops the 
-					// recalulation of the stopping trajectory (Optimal Control Strategy).
+					// Start intentional stop braking maneuvre if stopping distance is smaller than 
+					// stop_distance_traffic_queue meter. This stops the recalulation of the stopping trajectory 
 					{
 						target_a = vehicleInfo.max_deceleration;
 					}
-					// use following in normal traffic
+					
 					else{
-						target_a = (-CurrSpeed*CurrSpeed)/(2.0*(brake_distance));
+						// use gap closing maneuvre
+						if (brake_distance > stop_distance_traffic_queue+stop_distance_traffic_queue*0.2) {
+							target_a = vehicleInfo.max_acceleration*0.2;
+						}
+						else {
+							target_a = (-CurrSpeed*CurrSpeed)/(2.0*(brake_distance));
+						}
 					}
+				}
+				else if (CurrSpeed < 2.0)
+				// intermediate braking if we are slow
+				{
+					target_a = vehicleInfo.max_deceleration*2;
 				}
 				else
 				// Emergency Stop
@@ -2382,17 +2392,16 @@ double PlanningHelpers::GetACCVelocityModelBased(const double& dt, const double&
 			// adding current speed creates an offset between accelration and braking. Considered like a coasting mode 
 			// before braking, preventing state loops.
 			{
-				std::cout << "------> ACC in follow" << std::endl;
 				target_a = vehicleInfo.max_acceleration;
 			}
 		}
 
 		// // start deceleration to fullstop with max decelration. (Stop recalculating the braking trajectory)
-		double currentBrakeDistance = (-CurrSpeed*CurrSpeed/(2*vehicleInfo.max_deceleration));
-		if (currentBrakeDistance < 0.5)
-		{
-			target_a = vehicleInfo.max_deceleration;
-		}
+		// double currentBrakeDistance = (-CurrSpeed*CurrSpeed/(2*vehicleInfo.max_deceleration));
+		// if (currentBrakeDistance < 0.5)
+		// {
+		// 	target_a = vehicleInfo.max_deceleration;
+		// }
 
 		/**
 		 * Apply brake push factors

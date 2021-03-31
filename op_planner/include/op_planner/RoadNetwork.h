@@ -1182,6 +1182,17 @@ public:
 		return minS;
 	}
 
+	double getDistanceToNext(){
+		// distance to next object on our local select path
+		return distanceToNext;
+	}
+
+	double getDistanceToStopLine()
+	{
+		//distance to next stopline if there is one available
+		if(stoppingDistances.size()==4) return stoppingDistances.at(3);
+	}
+
 	PreCalculatedConditions()
 	{
 		currentGoalID = 0;
