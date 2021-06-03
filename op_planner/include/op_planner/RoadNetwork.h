@@ -917,6 +917,8 @@ public:
 	double stopDistance;
 	double followVelocity;
 	double followDistance;
+        double egoStoppingVelocity;
+        double egoFollowingVelocity;
 	LIGHT_INDICATOR indicator;
 	bool bNewPlan;
 	int iTrajectory;
@@ -931,6 +933,8 @@ public:
 		stopDistance = 0;
 		followVelocity = 0;
 		followDistance = 0;
+                egoStoppingVelocity = 0.0;
+                egoFollowingVelocity = 0.0;
 		indicator  = INDICATOR_NONE;
 		bNewPlan = false;
 		iTrajectory = -1;
@@ -1106,6 +1110,7 @@ public:
 	//Following
 	double 				distanceToNext;
 	double				velocityOfNext;
+        double                          egoFollowingVelocity;
 	//-------------------------------------------//
 	//For Lane Change
 	int 				iPrevSafeLane;
@@ -1123,6 +1128,7 @@ public:
 	bool				bTargetLaneSafe;
 	//-------------------------------------------//
 	//Traffic Lights & Stop Sign
+        double                          egoStoppingVelocity;
 	int 				currentStopSignID;
 	int 				prevStopSignID;
 	int 				currentTrafficLightID;
@@ -1177,6 +1183,8 @@ public:
 		//distance to stop
 		distanceToNext = -1;
 		velocityOfNext = 0;
+                egoFollowingVelocity = 0.0;
+                egoStoppingVelocity = 0.0;
 		currentStopSignID = -1;
 		prevStopSignID = -1;
 		currentTrafficLightID = -1;
