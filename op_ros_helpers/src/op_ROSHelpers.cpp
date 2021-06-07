@@ -1041,7 +1041,7 @@ void ROSHelpers::TrajectorySelectedToMarkers(const std::vector<PlannerHNS::WayPo
 void ROSHelpers::TrajectorySelectedToCircles(const std::vector<PlannerHNS::WayPoint>& path, const double& r_path, const double& g_path,
 		const double& b_path, const double& r_circle, const double& g_circle, const double& b_circle, const double& radius, visualization_msgs::MarkerArray& markerArray, int skip)
 {
-	visualization_msgs::Marker path_part, circle_part;
+	visualization_msgs::Marker circle_part;
 
 	int count = 0;
 	std_msgs::ColorRGBA color;
@@ -1053,15 +1053,13 @@ void ROSHelpers::TrajectorySelectedToCircles(const std::vector<PlannerHNS::WayPo
 	for (unsigned int i = 0; i < path.size(); i++)
 	{
 		  color.b = 0;
-		  color.g = 256 - (path.at(i).curvatureCost*256.0);
-		  color.r = path.at(i).curvatureCost*256.0;
+		  color.g = 1 - (path.at(i).curvatureCost*1.0);
+		  color.r = path.at(i).curvatureCost*1.0;
 		  count++;
 		  CreateCircleMarker(path.at(i), radius, color.r, color.g, color.b, count, "circle_part", circle_part);
 		  markerArray.markers.push_back(circle_part);
 		  i += skip;
 	}
-
-	markerArray.markers.push_back(path_part);
 }
 
 void ROSHelpers::DrivingPathToMarkers(const std::vector<std::pair<PlannerHNS::WayPoint, PlannerHNS::PolygonShape> >& path, visualization_msgs::MarkerArray& markerArray)

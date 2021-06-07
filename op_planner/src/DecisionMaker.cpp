@@ -389,10 +389,10 @@ void DecisionMaker::InitBehaviorStates()
 		for(unsigned int i=0; i < m_TotalPaths.size(); i++)
 		{
 			RelativeInfo curr_total_path_inf;
-			int dummy_index = 0;
-			PlanningHelpers::GetRelativeInfo(m_TotalPaths.at(i), state, curr_total_path_inf, dummy_index);
+			PlanningHelpers::GetRelativeInfo(m_TotalPaths.at(i), state, curr_total_path_inf);
 			pValues->distanceToChangeLane = m_TotalPaths.at(i).back().distanceCost - curr_total_path_inf.perp_point.distanceCost;
-			if((pValues->distanceToChangeLane < m_params.microPlanDistance*0.75) || (fabs(curr_total_path_inf.perp_distance) < 1.0 && m_iCurrentTotalPathId == i))
+			//if((pValues->distanceToChangeLane < m_params.microPlanDistance*0.75) || (fabs(curr_total_path_inf.perp_distance) < 1.0 && m_iCurrentTotalPathId == i)) commit 5f7e394 issue
+			if(pValues->distanceToChangeLane < m_params.microPlanDistance*0.75)
 			{
 				m_bRequestNewGlobalPlan = true;
 			}
