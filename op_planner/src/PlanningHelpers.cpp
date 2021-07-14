@@ -3559,6 +3559,43 @@ double PlanningHelpers::GetVelocityAhead(const std::vector<WayPoint>& path, cons
 	return min_v;
 }
 
+double PlanningHelpers::GetVelocityAheadLinear(const std::vector<WayPoint>& path, const RelativeInfo& info,
+                                               int& prev_index, const double& reasonable_brake_distance,
+                                               const double& current_v, const double& speed_deceleration)
+{
+  if (path.empty())
+    return 0;
+
+  double target_v = path.at(info.iFront).v;
+  double target_d = info.to_front_distance;
+  double local_v = path.at(info.iFront).v;
+  double desired_v = std::numeric_limits<double>::max();
+
+  double d = info.to_front_distance;
+  int local_i = info.iFront;
+
+  // iterate over local path
+  while (local_i < path.size() - 2 && d < reasonable_brake_distance)
+  {
+    local_i++;
+    d +=
+        hypot(path.at(local_i).pos.y - path.at(local_i - 1).pos.y, path.at(local_i).pos.x - path.at(local_i - 1).pos.x);
+
+    // calculate desired velocity using constant acceleration formula
+    double dv = sqrt(pow(path.at(local_i).v, 2) - 2 * speed_deceleration * d);
+
+    if (dv < desired_v)
+    {
+      desired_v = dv;
+      target_v = path.at(local_i).v;
+      target_d = d;
+    }
+  }
+
+  desired_v = std::min(std::max(std::min(current_v, desired_v), target_v), local_v);
+  return desired_v;
+}
+
 void PlanningHelpers::WritePathToFile(const string& fileName, const vector<WayPoint>& path)
 {
 	UtilityHNS::DataRW  dataFile;

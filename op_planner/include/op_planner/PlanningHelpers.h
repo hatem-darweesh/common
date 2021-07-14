@@ -207,6 +207,8 @@ public:
 
 	static double GetVelocityAhead(const std::vector<WayPoint>& path, const RelativeInfo& info,int& prev_index, const double& reasonable_brake_distance);
 
+        static double GetVelocityAheadLinear(const std::vector<WayPoint>& path, const RelativeInfo& info,int& prev_index, const double& reasonable_brake_distance, const double& currentSpeed, const double& speed_deceleration);
+
 	static double GetCurvatureCostAhead(const std::vector<WayPoint>& path, const RelativeInfo& info,int& prev_index, const double& search_distance);
 
 	static bool CompareTrajectories(const std::vector<WayPoint>& path1, const std::vector<WayPoint>& path2);
