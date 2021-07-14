@@ -84,8 +84,33 @@ protected:
 	//void UpdateCurrentLane(const double& search_distance);
 	bool SelectSafeTrajectory(const PlannerHNS::VehicleState& vehicleState);
 	BehaviorState GenerateBehaviorState(const VehicleState& vehicleState);
+
+	/**
+	 * Sets the trajectory velocity to the raw velocity. Returns the max velocity calculated with the ego stopping and following velocity.
+	 * Only without internal ECC.
+	 * @param beh
+	 * @param CurrStatus
+	 * @param dt
+	 */
 	double UpdateVelocityDirectlyToTrajectory(const BehaviorState& beh, const VehicleState& CurrStatus, const double& dt);
+
+	/**
+	 * Sets the trajectory velocity to a smoothed velocity. Returns the max velocity.
+	 * Used with internal ECC.
+	 * @param beh
+	 * @param CurrStatus
+	 * @param dt
+	 */
 	double UpdateVelocityDirectlyToTrajectorySmooth(BehaviorState& beh, const VehicleState& CurrStatus, const double& dt);
+
+	/**
+	 * Computes EgoFollowing and EgoStopping velocities. These values are used for decision making when the internal ECC is disabled.
+	 * Details : https://github.com/hatem-darweesh/common/pull/9
+	 * @param pValues Precalculated values
+	 * @param critical_long_front_distance
+	 */
+  void ComputeEgoFollowingAndStoppingVelocities(PreCalculatedConditions* pValues, double &critical_long_front_distance);
+
 	bool ReachEndOfGlobalPath(const double& min_distance, const int& iGlobalPathIndex);
 	bool TestForReplanningParams(const VehicleState& vehicleState);
 	void CheckForCurveZone(const VehicleState& vehicleState, double& curr_curve_cost, double& min_curve_cost);

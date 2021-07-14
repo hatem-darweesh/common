@@ -429,9 +429,16 @@ void DecisionMaker::InitBehaviorStates()
 	 * Block End ---------------------------------------------------------------------
 	 */
 
-     /**
-      * Computing Ego following velocity.
-      */
+  if (!m_bUseInternalACC) {
+    ComputeEgoFollowingAndStoppingVelocities(pValues, critical_long_front_distance);
+  }
+ }
+
+ void DecisionMaker::ComputeEgoFollowingAndStoppingVelocities(PreCalculatedConditions* pValues, double &critical_long_front_distance)
+ {
+   /**
+  * Computing Ego following velocity.
+  */
      if (!pValues->bFullyBlock)
      {
          pValues->egoFollowingVelocity = m_params.maxSpeed;
@@ -467,9 +474,6 @@ void DecisionMaker::InitBehaviorStates()
      }
      // clip ego STOPPING velocity between 0 and maxSpeed
      pValues->egoStoppingVelocity = std::min(std::max(pValues->egoStoppingVelocity, 0.0), m_params.maxSpeed);
-
-     std::cout << "STOPv: " << pValues->egoStoppingVelocity << "\n";
-     std::cout << "FOLLv: " << pValues->egoFollowingVelocity << "\n";
  }
 
  bool DecisionMaker::ReachEndOfGlobalPath(const double& min_distance, const int& iGlobalPathIndex)
@@ -634,8 +638,7 @@ void DecisionMaker::InitBehaviorStates()
  
  double DecisionMaker::UpdateVelocityDirectlyToTrajectory(const BehaviorState& beh, const VehicleState& CurrStatus, const double& dt)
  {
-
-	 PlannerHNS::PreCalculatedConditions *preCalcPrams = m_pCurrentBehaviorState->GetCalcParams();
+ PlannerHNS::PreCalculatedConditions *preCalcPrams = m_pCurrentBehaviorState->GetCalcParams();
 
 	if(!preCalcPrams || m_TotalPaths.size() == 0) return 0;
 
@@ -737,8 +740,7 @@ void DecisionMaker::InitBehaviorStates()
 		m_Path.at(i).v = desiredVelocity;
 	}
 
-	return max_velocity;
-
+	return std::min({max_velocity, preCalcPrams->egoStoppingVelocity, preCalcPrams->egoFollowingVelocity});
  }
 
  PlannerHNS::BehaviorState DecisionMaker::DoOneStep(
