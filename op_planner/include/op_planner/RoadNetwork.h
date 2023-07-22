@@ -470,6 +470,7 @@ public:
 	double  	collisionCost;
 	double 		laneChangeCost;
 	double      width;
+	double		hypot;
 	int 		laneId;
 	int 		id;
 	int 		LeftPointId;

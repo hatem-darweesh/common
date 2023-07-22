@@ -177,6 +177,7 @@ void TrajectoryEvaluator::collectContoursAndTrajectories(const std::vector<Plann
 
         p.id = i;
         p.width = w;
+        p.hypot = hypot(obj_list.at(i).w, obj_list.at(i).l);
 
         bool b_blocking = false;
         for(unsigned int k=0; k < obj_list.size(); k++)
@@ -193,6 +194,7 @@ void TrajectoryEvaluator::collectContoursAndTrajectories(const std::vector<Plann
          // std::cout << "Skip Point: (" << i_trj << ", " << i_p << ") " << ", Objects : " << obj_list.size() <<std::endl;
           break;
         }
+
 
         bool b_found_point = false;
         for(unsigned int k=0; k < trajectory_points.size(); k++)
@@ -647,7 +649,7 @@ void TrajectoryEvaluator::calculateDistanceCosts(const PlanningParams& params, c
 
 				//std::cout << info.bAfter << ", " << info.bBefore << ", " << actual_lateral_distance << ", " << actual_longitudinal_distance <<", " << t_diff <<", " << a_diff <<" ," << traj_prob <<std::endl;
 
-				if(actual_lateral_distance < c_lateral_d && t_diff < eval_params_.collision_time_) // collision point
+				if(actual_lateral_distance < c_lateral_d + trajectory_points.at(j).hypot/2.0 && t_diff < eval_params_.collision_time_) // collision point
 				{
 					trajectory_costs.at(i).lateral_cost += 2.0; // use half meter fixed critical distance as contact cost for all collision points in the range
 					collision_points.push_back(info.perp_point);
