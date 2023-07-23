@@ -420,6 +420,18 @@ Lane* MappingHelpers::GetClosestLaneFromMap(const WayPoint& pos, RoadNetwork& ma
 	return pCloseLane;
 }
 
+bool MappingHelpers::PointInMap(RoadNetwork& map,const WayPoint& pos)
+{
+	for(unsigned int i=0; i < map.boundaries.size(); i++)
+	{
+		if ( PlanningHelpers::PointInsidePolygon(map.boundaries.at(i).points, pos) )
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 WayPoint MappingHelpers::GetFirstWaypoint(RoadNetwork& map)
 {
 	for(unsigned int j=0; j< map.roadSegments.size(); j ++)

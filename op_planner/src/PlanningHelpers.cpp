@@ -3952,6 +3952,7 @@ void PlanningHelpers::InitializeSafetyPolygon(const PlannerHNS::WayPoint& curr_s
   car_border.points.push_back(top_left_car);
 }
 
+
 int PlanningHelpers::PointInsidePolygon(const std::vector<GPSPoint>& points,const GPSPoint& p)
 {
         int counter = 0;

@@ -7,6 +7,7 @@
 #define TRAJECTORY_EVALUATOR_H_
 
 #include "PlanningHelpers.h"
+#include "MappingHelpers.h"
 #include "PlannerCommonDef.h"
 
 namespace PlannerHNS
@@ -67,6 +68,7 @@ public:
   }
 
 public:
+  RoadNetwork m_Map;
   std::vector<WayPoint> all_contour_points_;
   std::vector<WayPoint> all_trajectories_points_;
   std::vector<WayPoint> collision_points_;
@@ -98,6 +100,8 @@ private:
   void initializeLocalRollOuts(const WayPoint& curr_state, const CAR_BASIC_INFO& car_info, const PlanningParams& params, const double& c_long_back_d, const std::vector<std::vector<WayPoint> >& original_roll_outs, std::vector<std::vector<WayPoint> >& local_roll_outs);
 
   void calculateDistanceCosts(const PlanningParams& params, const double& c_lateral_d, const std::vector<std::vector<WayPoint> >& roll_outs, const std::vector<WayPoint>& contour_points, const std::vector<WayPoint>& trajectory_points, std::vector<TrajectoryCost>& trajectory_costs, std::vector<WayPoint>& collision_points);
+
+  void blockTrajectoryOutOfRoad(const std::vector<std::vector<WayPoint> >& roll_outs, std::vector<TrajectoryCost>& trajectory_costs);
 
   TrajectoryCost findBestTrajectory(const PlanningParams& params, const int& prev_curr_index, const bool& b_keep_curr, std::vector<TrajectoryCost> trajectory_costs);
 

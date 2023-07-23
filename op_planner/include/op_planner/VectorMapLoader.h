@@ -21,7 +21,7 @@ namespace PlannerHNS {
 
 class VectorMapLoader {
 public:
-	VectorMapLoader(int map_version = 1, bool enable_lane_change = false, bool load_curb = false, bool load_lines = false, bool load_wayarea = false);
+	VectorMapLoader(int map_version = 1, bool enable_lane_change = false, bool load_curb = false, bool load_lines = false, bool load_wayarea = true);
 	virtual ~VectorMapLoader();
 
 	/**

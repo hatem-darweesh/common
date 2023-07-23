@@ -56,7 +56,7 @@ TrajectoryCost TrajectoryEvaluator::doOneStep(const std::vector<std::vector<WayP
 	best_trajectory.lane_index = 0;
 
 	if(roll_outs.size() == 0)
-	{
+        {
 		std::cout << " ### Zero generated rollouts, But They should = " << params.rollOutNumber + 1 << std::endl;
 		return best_trajectory;
 	}
@@ -87,6 +87,9 @@ TrajectoryCost TrajectoryEvaluator::doOneStep(const std::vector<std::vector<WayP
 
   collision_points_.clear();
   calculateDistanceCosts(params, critical_lateral_distance, local_roll_outs_, all_contour_points_, all_trajectories_points_, trajectory_costs_, collision_points_);
+  if(params.enableBlockingRolloutsOutOfMap == true){
+    blockTrajectoryOutOfRoad(local_roll_outs_, trajectory_costs_);
+  }
 //  collision_points_.clear();
 //  collision_points_.insert(collision_points_.begin(), all_contour_points_.begin(), all_contour_points_.end());
 //  collision_points_.insert(collision_points_.begin(), all_trajectories_points_.begin(), all_trajectories_points_.end());
@@ -362,6 +365,21 @@ void TrajectoryEvaluator::initializeCosts(const std::vector<std::vector<WayPoint
         tc.lane_change_cost = roll_outs.at(it).at(0).laneChangeCost;
       }
       trajectory_costs.push_back(tc);
+    }
+  }
+}
+
+void TrajectoryEvaluator::blockTrajectoryOutOfRoad(const std::vector<std::vector<WayPoint> >& roll_outs, std::vector<TrajectoryCost>& trajectory_costs)
+{
+  for(unsigned int i=0; i<roll_outs.size(); i++)
+  {
+    for(unsigned int j=0; j<roll_outs.at(i).size(); j++)
+    {
+      if( ! MappingHelpers::PointInMap(m_Map,roll_outs.at(i).at(j)) )
+      {
+        trajectory_costs.at(i).bBlocked = true;
+        break;
+      }
     }
   }
 }
