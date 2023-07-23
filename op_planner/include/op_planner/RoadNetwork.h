@@ -1274,6 +1274,7 @@ public:
 	bool 	enableTrafficLightBehavior;
 	bool 	enableStopSignBehavior;
 	bool 	enableTimeOutAvoidance;
+	bool 	enableFinalLocalPathUpdate;
 	double 	avoidanceTimeOut;
 
 	bool 	enabTrajectoryVelocities;
@@ -1320,6 +1321,7 @@ public:
 		enableLaneChange = false;
 		enableStopSignBehavior = false;
 		enabTrajectoryVelocities = false;
+		enableFinalLocalPathUpdate = true;
 		minIndicationDistance = 15;
 
 		enableTimeOutAvoidance = false;

@@ -536,7 +536,7 @@ void DecisionMaker::InitBehaviorStates()
 
 	if((currIndex > index_limit
 			|| preCalcPrams->bRePlan
-			|| preCalcPrams->bNewGlobalPath) && !preCalcPrams->bFinalLocalTrajectory && m_iSinceLastReplan > m_params.nReliableCount)
+			|| preCalcPrams->bNewGlobalPath) && (!preCalcPrams->bFinalLocalTrajectory || m_params.enableFinalLocalPathUpdate) && m_iSinceLastReplan > m_params.nReliableCount)
 	{
 		m_iSinceLastReplan = 0;
 		return true;
@@ -558,7 +558,7 @@ void DecisionMaker::InitBehaviorStates()
 
 	if((currIndex > index_limit
 			|| preCalcPrams->bRePlan
-			|| preCalcPrams->bNewGlobalPath) && !preCalcPrams->bFinalLocalTrajectory && m_iSinceLastReplan > m_params.nReliableCount)
+			|| preCalcPrams->bNewGlobalPath) && (!preCalcPrams->bFinalLocalTrajectory || m_params.enableFinalLocalPathUpdate) && m_iSinceLastReplan > m_params.nReliableCount)
 	{
 		//Debug
 		//std::cout << "New Local Plan !! " << currIndex << ", "<< preCalcPrams->bRePlan << ", " << preCalcPrams->bNewGlobalPath  << ", " <<  m_TotalPath.at(0).size() << ", PrevLocal: " << m_Path.size();
