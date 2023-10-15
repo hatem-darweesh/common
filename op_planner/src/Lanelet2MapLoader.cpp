@@ -10,8 +10,10 @@
 
 namespace PlannerHNS {
 
-Lanelet2MapLoader::Lanelet2MapLoader()  {
+static std::vector<std::string> g_lanelet_road_subtype_tags = {"road", "junction_road"};
 
+Lanelet2MapLoader::Lanelet2MapLoader(bool bCalcWidthForEachPoint)  {
+	m_bCalcWidthForEachPoint = bCalcWidthForEachPoint;
 }
 
 Lanelet2MapLoader::~Lanelet2MapLoader() {
@@ -20,12 +22,15 @@ Lanelet2MapLoader::~Lanelet2MapLoader() {
 void Lanelet2MapLoader::LoadMap(const autoware_lanelet2_msgs::MapBin& msg, PlannerHNS::RoadNetwork& map)
 {
 	map.Clear();
-	lanelet::LaneletMapPtr l2_map = std::make_shared<lanelet::LaneletMap>();
+	m_pL2Map = std::make_shared<lanelet::LaneletMap>();
 
 	try
 	{
-		lanelet::utils::conversion::fromBinMsg(msg, l2_map);
-		FromLaneletToRoadNetwork(l2_map, map, nullptr);
+		lanelet::utils::conversion::fromBinMsg(msg, m_pL2Map);
+		lanelet::traffic_rules::TrafficRulesPtr trafficRules = lanelet::traffic_rules::TrafficRulesFactory::create(lanelet::Locations::Germany, lanelet::Participants::Vehicle);
+		m_RoutingGraph = lanelet::routing::RoutingGraph::build(*m_pL2Map, *trafficRules);
+		m_ProjStr = map.str_proj;
+		FromLaneletToRoadNetwork(m_pL2Map, map, nullptr, m_RoutingGraph);
 	}
 	catch(std::exception& e)
 	{
@@ -39,14 +44,19 @@ lanelet::LaneletMapPtr Lanelet2MapLoader::LoadMap(const std::string& fileName, P
 	PlannerHNS::MappingHelpers::LoadProjectionData(fileName, map);
 	lanelet::LaneletMapPtr l2_map = nullptr;
 	lanelet::ErrorMessages errors;
-	lanelet::Projector* p_proj = nullptr;
+	if(m_pProjector != nullptr)
+	{
+		delete m_pProjector;
+		m_pProjector = nullptr;
+	}
+
 
 	if(map.proj == PlannerHNS::MGRS_PROJ)
 	{
 		std::cout << " >> Loading Map using Autoware OSM parser and MGRS projector." << std::endl;
 		std::cout << "Using projection string: " << map.str_proj << std::endl;
 		std::cout << "Using origin : " << map.origin.pos.ToString() << std::endl;
-		p_proj = new lanelet::projection::MGRSProjector();
+		m_pProjector = new lanelet::projection::MGRSProjector();
 
 	}
 	else
@@ -69,14 +79,19 @@ lanelet::LaneletMapPtr Lanelet2MapLoader::LoadMap(const std::string& fileName, P
 			}
 		}
 
-		p_proj = new lanelet::projection::UtmProjector(lanelet::Origin({map.origin.pos.lat, map.origin.pos.lon, map.origin.pos.alt}));
+		m_pProjector = new lanelet::projection::UtmProjector(lanelet::Origin({map.origin.pos.lat, map.origin.pos.lon, map.origin.pos.alt}));
 	}
 
 	try
 	{
-		l2_map = lanelet::load(fileName, "autoware_osm_handler", *p_proj, &errors);
-		lanelet::utils::overwriteLaneletsCenterline(l2_map, false);
-		FromLaneletToRoadNetwork(l2_map, map, p_proj);
+		m_pL2Map = lanelet::load(fileName, "autoware_osm_handler", *m_pProjector, &errors);
+		lanelet::utils::overwriteLaneletsCenterline(m_pL2Map, false);
+		lanelet::traffic_rules::TrafficRulesPtr trafficRules = lanelet::traffic_rules::TrafficRulesFactory::create(lanelet::Locations::Germany, lanelet::Participants::Vehicle);
+		m_RoutingGraph = lanelet::routing::RoutingGraph::build(*m_pL2Map, *trafficRules);
+		m_ProjStr = map.str_proj;
+		ExtractRoadSegmentsFromLanelets(map.roadSegments);
+		FromLaneletToRoadNetwork(m_pL2Map, map, m_pProjector, m_RoutingGraph);
+//		PrintExistingAttributes();
 	}
 	catch(std::exception& e)
 	{
@@ -94,13 +109,17 @@ lanelet::LaneletMapPtr Lanelet2MapLoader::LoadMap(const std::string& fileName, P
 		return nullptr;
 	}
 
-	if(p_proj != nullptr)
-		delete p_proj;
+	if(m_pProjector != nullptr)
+	{
+		delete m_pProjector;
+	}
 
 	return l2_map;
 }
 
-void Lanelet2MapLoader::CreateLane(lanelet::routing::RoutingGraphUPtr& routingGraph, lanelet::traffic_rules::TrafficRulesPtr& traffic, lanelet::ConstLanelet& lanelet_obj, PlannerHNS::Lane& l, PlannerHNS::RoadNetwork& map, lanelet::Projector* proj)
+void Lanelet2MapLoader::CreateLane(lanelet::routing::RoutingGraphUPtr& routingGraph,
+		lanelet::ConstLanelet& lanelet_obj,
+		PlannerHNS::Lane& l, PlannerHNS::RoadNetwork& map, lanelet::Projector* proj)
 {
 	l.id = lanelet_obj.id();
 	lanelet::ConstLanelets next_lanes = routingGraph->following(lanelet_obj);
@@ -137,7 +156,15 @@ void Lanelet2MapLoader::CreateLane(lanelet::routing::RoutingGraphUPtr& routingGr
 	}
 
 	l.num = routingGraph->lefts(lanelet_obj).size() + 1;
-	l.speed = traffic->speedLimit(lanelet_obj).speedLimit.value();
+	if(lanelet_obj.hasAttribute(lanelet::AttributeName::SpeedLimit))
+	{
+		auto speed_limit = lanelet_obj.attribute(lanelet::AttributeName::SpeedLimit).asDouble();
+		l.speed = *speed_limit;
+	}
+	else
+	{
+		l.speed = 0;
+	}
 
 	double width_sum = 0;
 	if(l.points.size() == center_l.size() && l.points.size() > 0)
@@ -155,29 +182,25 @@ void Lanelet2MapLoader::CreateLane(lanelet::routing::RoutingGraphUPtr& routingGr
 	PlannerHNS::PlanningHelpers::CalcAngleAndCost(l.points);
 }
 
-void Lanelet2MapLoader::FromLaneletToRoadNetwork(lanelet::LaneletMapPtr l2_map, PlannerHNS::RoadNetwork& map, lanelet::Projector* proj)
+void Lanelet2MapLoader::FromLaneletToRoadNetwork(lanelet::LaneletMapPtr l2_map,
+		PlannerHNS::RoadNetwork& map, lanelet::Projector* proj, lanelet::routing::RoutingGraphUPtr& routingGraph)
 {
-	lanelet::LaneletLayer& l_layer = l2_map->laneletLayer;
-	  std::vector<lanelet::ConstLanelet> lets;
-	  lets.insert(lets.begin(), l_layer.begin(), l_layer.end());
+//	  PlannerHNS::RoadSegment segment;
 
-	  lanelet::traffic_rules::TrafficRulesPtr trafficRules =
-			  lanelet::traffic_rules::TrafficRulesFactory::create(lanelet::Locations::Germany, lanelet::Participants::Vehicle);
 
-	  lanelet::routing::RoutingGraphUPtr routingGraph = lanelet::routing::RoutingGraph::build(*l2_map, *trafficRules);
-
-	  PlannerHNS::RoadSegment segment;
 	  for(auto& x : l2_map->laneletLayer)
 	  {
-		  //std::cout << "Lanelet Type: " << x.attributes()["type"] << ", " <<  x.attributes()["subtype"] << ", " << x.id() <<  std::endl << std::endl;
+//		  std::cout << "Lanelet Type: " << x.attributes()["type"] << ", " <<  x.attributes()["subtype"] << ", " << x.id() <<  std::endl << std::endl;
 		  if(x.attributes()["subtype"].value().compare("road") == 0 || x.attributes()["subtype"].value().compare("junction_road") == 0)
 		  {
-
-			  PlannerHNS::Lane l;
-			  CreateLane(routingGraph, trafficRules, x, l, map, proj);
-
-			  std::vector<lanelet::ConstLanelet> x_lets;
-			  x_lets.push_back(x);
+			  double road_id = 0;
+			  Lane* pL = map.GetLaneById(x.id());
+			  if(pL != nullptr)
+			  {
+				  road_id = pL->roadId;
+			  }
+//			  PlannerHNS::Lane l;
+//			  CreateLane(routingGraph, x, l, map, proj);
 
 			    // find stop lines referenced by traffic signs
 			    std::vector<std::shared_ptr<const lanelet::TrafficSign> > traffic_signs = x.regulatoryElementsAs<const lanelet::TrafficSign>();
@@ -225,11 +248,12 @@ void Lanelet2MapLoader::FromLaneletToRoadNetwork(lanelet::LaneletMapPtr l2_map, 
 							PlannerHNS::TrafficSign op_ts;
 							op_ts.id = l_or_p.id();
 							op_ts.groupID = sign_group_id;
-							op_ts.laneIds.push_back(l.id);
+							op_ts.laneIds.push_back(x.id());
+							op_ts.roadId = road_id;
 							op_ts.signType = PlannerHNS::STOP_SIGN;
-							  if(l.points.size() > 0)
+							  if(pL != nullptr && pL->points.size() > 0)
 							  {
-								  op_ts.horizontal_angle = (l.points.at(0).pos.a*RAD2DEG) - 90;
+								  op_ts.horizontal_angle = (pL->points.at(0).pos.a*UtilityHNS::RAD2DEGC) - 90;
 							  }
 
 							if(l_or_p.isLineString())
@@ -281,13 +305,18 @@ void Lanelet2MapLoader::FromLaneletToRoadNetwork(lanelet::LaneletMapPtr l2_map, 
 							sl.id = stop_line_points.id();
 							sl.stopSignId = ts->id();
 							CreateWayPointsFromLineString(map, sl.points, stop_line_points, proj);
-							l.stopLines.push_back(sl);
-							//PlannerHNS::MappingHelpers::InsertUniqueStopLine(map.stopLines, sl);
+							if(pL != nullptr)
+							{
+								pL->stopLines.push_back(sl);
+							}
+							PlannerHNS::MappingHelpers::InsertUniqueStopLine(map.stopLines, sl);
 						}
 			        }
 			      }
 			    }
 
+			  std::vector<lanelet::ConstLanelet> x_lets;
+			  x_lets.push_back(x);
 			  std::vector<lanelet::ConstLineString3d> stop_lines = lanelet::utils::query::stopLinesLanelets(x_lets);
 			  for(unsigned int i=0; i < stop_lines.size(); i++)
 			  {
@@ -295,29 +324,36 @@ void Lanelet2MapLoader::FromLaneletToRoadNetwork(lanelet::LaneletMapPtr l2_map, 
 				  PlannerHNS::StopLine sl;
 				  sl.id = stop_line_points.id();
 				  CreateWayPointsFromLineString(map, sl.points, stop_line_points, proj);
-				  l.stopLines.push_back(sl);
-				 //PlannerHNS::MappingHelpers::InsertUniqueStopLine(map.stopLines, sl);
+					if(pL != nullptr)
+					{
+						pL->stopLines.push_back(sl);
+					}
+				 PlannerHNS::MappingHelpers::InsertUniqueStopLine(map.stopLines, sl);
 			  }
 
 			  std::vector<lanelet::AutowareTrafficLightConstPtr> lanelet_lights = lanelet::utils::query::autowareTrafficLights(x_lets);
 			  for(unsigned int i=0; i < lanelet_lights.size(); i++)
 			  {
-				  std::vector<PlannerHNS::TrafficLight> tls = CreateTrafficLightsFromLanelet2(map, lanelet_lights.at(i), proj, l.id);
-				  if(l.points.size() > 0)
+				  std::vector<PlannerHNS::TrafficLight> tls = CreateTrafficLightsFromLanelet2(map, lanelet_lights.at(i), proj, x.id());
+				  if(pL != nullptr && pL->points.size() > 0)
 				  {
 					  for(auto& tl: tls)
 					  {
-						  tl.horizontal_angle = (l.points.at(0).pos.a*RAD2DEG) - 90;
+						  tl.horizontal_angle = (pL->points.at(0).pos.a*UtilityHNS::RAD2DEGC) - 90;
 					  }
 				  }
-				  l.trafficlights.insert(l.trafficlights.begin(), tls.begin(), tls.end());
+
+				  if(pL != nullptr)
+				  {
+					  pL->trafficlights.insert(pL->trafficlights.begin(), tls.begin(), tls.end());
+				  }
 				  for(unsigned int j=0; j < tls.size(); j++)
 				  {
 					  PlannerHNS::MappingHelpers::InsertUniqueTrafficLight(map.trafficLights, tls.at(j));
 				  }
 			  }
 
-			  segment.Lanes.push_back(l);
+//			  segment.Lanes.push_back(l);
 		  }
 	  }
 
@@ -340,9 +376,11 @@ void Lanelet2MapLoader::FromLaneletToRoadNetwork(lanelet::LaneletMapPtr l2_map, 
 
 	  for(auto& x : l2_map->lineStringLayer)
 	  {
-//		  std::cout << "String Layer: " << x.attributes()["area"] << ", " << x.attributes()["type"] << ", " <<  x.attributes()["subtype"] << ", " << x.id()  <<  std::endl;
+		  std::string line_type = x.attributes()["type"].value();
+		  std::string sub_type = x.attributes()["subtype"].value();
+//		  std::cout << "String Layer: " << x.attributes()["area"] << ", " << line_type  << ", " << sub_type  << ", " << x.id()  <<  std::endl;
 
-		  if(x.attributes()["subtype"].value().compare("parking") == 0)
+		  if(line_type.compare("parking") == 0)
 		  {
 			  PlannerHNS::Boundary area;
 			  area.id = x.id();
@@ -350,10 +388,63 @@ void Lanelet2MapLoader::FromLaneletToRoadNetwork(lanelet::LaneletMapPtr l2_map, 
 			  CreateWayPointsFromLineString(map, area.points, x, proj);
 			  map.boundaries.push_back(area);
 		  }
-	  }
+		  else if(line_type.compare("curbstone") == 0)
+		  {
+			  PlannerHNS::Curb c;
+			  c.id = x.id();
+			  ExtractWayPointsFromLineString(x, c.points);
+			  map.curbs.push_back(c);
 
-	  map.roadSegments.clear();
-	  map.roadSegments.push_back(segment);
+		  }
+		  else if(line_type.compare("road_border") == 0)
+		  {
+			  PlannerHNS::Line l;
+			  l.id = x.id();
+			  if(x.hasAttribute("color"))
+			  {
+				  if(x.attributes()["color"].value().compare("yellow") == 0)
+				  l.color = MARK_YELLOW;
+			  }
+			  l.type = SHOULDER_LINE;
+			  ExtractWayPointsFromLineString(x, l.points);
+			  map.lines.push_back(l);
+		  }
+		  else if(line_type.compare("stop_line") == 0)
+		  {
+
+		  }
+		  else if(line_type.compare("line_thin") == 0 || line_type.compare("line_thick") == 0)
+		  {
+			  PlannerHNS::Line l;
+			  l.id = x.id();
+			  if(x.hasAttribute("color"))
+			  {
+				  if(x.attributes()["color"].value().compare("yellow") == 0)
+				  l.color = MARK_YELLOW;
+			  }
+
+			  if(line_type.compare("line_thin") == 0)
+			  {
+				  l.width = 0.15;
+			  }
+			  else
+			  {
+				  l.width = 0.25;
+			  }
+
+			  if(sub_type.compare("dashed") == 0)
+			  {
+				  l.type = DOTTED_LINE;
+			  }
+			  else if(sub_type.compare("solid") == 0)
+			  {
+				  l.type = SOLID_LINE;
+			  }
+
+			  ExtractWayPointsFromLineString(x, l.points);
+			  map.lines.push_back(l);
+		  }
+	  }
 
 	  PlannerHNS::MappingHelpers::ConnectMissingStopLinesAndLanes(map);
 
@@ -479,21 +570,7 @@ void Lanelet2MapLoader::CreateWayPointsFromPolygon(const PlannerHNS::RoadNetwork
 	}
 }
 
-std::vector<PlannerHNS::StopLine> Lanelet2MapLoader::CreateStopLinesFromLanelet2(const PlannerHNS::RoadNetwork& map, lanelet::ConstLineString3d& sl_let, lanelet::Projector* proj, int lane_id )
-{
-	PlannerHNS::StopLine sl;
-	std::vector<PlannerHNS::StopLine> stop_lines;
 
-	sl.id = sl_let.id();
-	CreateWayPointsFromLineString(map, sl.points, sl_let, proj);
-
-	if(lane_id != 0)
-		sl.laneId = lane_id;
-
-	stop_lines.push_back(sl);
-
-	return stop_lines;
-}
 
 std::vector<PlannerHNS::TrafficLight> Lanelet2MapLoader::CreateTrafficLightsFromLanelet2(const PlannerHNS::RoadNetwork& map, lanelet::AutowareTrafficLightConstPtr& tl_let, lanelet::Projector* proj, int lane_id)
 {
@@ -688,6 +765,398 @@ void Lanelet2MapLoader::ExtractFirstLongLatFromFileAsOrigin(const std::string& f
 		map.origin.pos.lat = strtod(elements.at(0)->Attribute("lat"), NULL);
 		map.origin.pos.lon = strtod(elements.at(0)->Attribute("lon"), NULL);
 		std::cout << "Lanelet2 file first found: Latitude: " << map.origin.pos.lat <<  ", Longitude: " << map.origin.pos.lon << std::endl;
+	}
+}
+
+/**
+ * Code of the new parser
+ */
+
+void Lanelet2MapLoader::ExtractLightsFromLanelets(RoadNetwork& map)
+{
+//	std::vector<lanelet::ConstLanelet> lets;
+//	for(auto& let: m_pL2Map->laneletLayer)
+//	{
+//		lets.push_back(let);
+//	}
+//	  std::vector<lanelet::AutowareTrafficLightConstPtr> lanelet_lights = lanelet::utils::query::autowareTrafficLights(lets);
+//	  for(auto& light: lanelet_lights)
+//	  {
+//		  std::vector<PlannerHNS::TrafficLight> tls = CreateTrafficLightsFromLanelet2(map, lanelet_lights.at(i), proj, l.id);
+//		  if(l.points.size() > 0)
+//		  {
+//			  for(auto& tl: tls)
+//			  {
+//				  tl.horizontal_angle = (l.points.at(0).pos.a*UtilityHNS::RAD2DEGC) - 90;
+//			  }
+//		  }
+//		  l.trafficlights.insert(l.trafficlights.begin(), tls.begin(), tls.end());
+//		  for(unsigned int j=0; j < tls.size(); j++)
+//		  {
+//			  PlannerHNS::MappingHelpers::InsertUniqueTrafficLight(map.trafficLights, tls.at(j));
+//		  }
+//	  }
+}
+
+void Lanelet2MapLoader::ExtractStopLines(lanelet::ConstLineStrings3d& let_stop_lines, std::vector<StopLine>& stop_lines)
+{
+	for(auto& let_sl: let_stop_lines)
+	{
+	  PlannerHNS::StopLine sl;
+	  sl.id = let_sl.id();
+	  ExtractWayPointsFromLineString(let_sl, sl.points);
+	  stop_lines.push_back(sl);
+	}
+}
+
+bool Lanelet2MapLoader::ExtractSign(std::shared_ptr<const lanelet::TrafficSign>& ts, PlannerHNS::TrafficSign& op_sign)
+{
+	if(ts->type().compare("stop_sign") != 0)
+	{
+		std::cout << " ## Sign is not a StopSign, There is a new type: " << ts->type() << std::endl;
+		return false;
+	}
+
+	lanelet::ConstLineStringsOrPolygons3d pos_data = ts->trafficSigns();
+
+	for(auto& l_or_p: pos_data)
+	{
+
+		PlannerHNS::TrafficSign op_ts;
+		op_ts.id = l_or_p.id();
+		op_ts.signType = PlannerHNS::STOP_SIGN;
+
+		if(l_or_p.isLineString())
+		{
+			lanelet::Optional<lanelet::ConstLineString3d> line_str = l_or_p.lineString();
+			if(!!line_str)
+			{
+				ExtractWayPointsFromLineString(line_str.get(), op_sign.points);
+			}
+		}
+		else if(l_or_p.polygon())
+		{
+			lanelet::Optional<lanelet::ConstPolygon3d> poly_str = l_or_p.polygon();
+			if(!!poly_str)
+			{
+				ExtractWayPointsFromPolygon(poly_str.get(), op_sign.points);
+			}
+		}
+
+		PlannerHNS::WayPoint sum_p;
+		for(unsigned k=0; k < op_ts.points.size(); k++)
+		{
+			sum_p.pos.x += op_ts.points.at(k).pos.x;
+			sum_p.pos.y += op_ts.points.at(k).pos.y;
+			sum_p.pos.z += op_ts.points.at(k).pos.z;
+			sum_p.pos.lat += op_ts.points.at(k).pos.lat;
+			sum_p.pos.lon += op_ts.points.at(k).pos.lon;
+			sum_p.pos.alt += op_ts.points.at(k).pos.alt;
+		}
+
+		if(op_ts.points.size() > 0)
+		{
+			op_ts.pose.pos.x = sum_p.pos.x/op_ts.points.size();
+			op_ts.pose.pos.y = sum_p.pos.y/op_ts.points.size();
+			op_ts.pose.pos.z = sum_p.pos.z/op_ts.points.size();
+			op_ts.pose.pos.lat = sum_p.pos.lat/op_ts.points.size();
+			op_ts.pose.pos.lon = sum_p.pos.lon/op_ts.points.size();
+			op_ts.pose.pos.alt = sum_p.pos.alt/op_ts.points.size();
+		}
+	}
+
+	return true;
+}
+
+void Lanelet2MapLoader::ExtractSignsFromLanelets(RoadNetwork& map)
+{
+	for(auto& let: m_pL2Map->laneletLayer)
+	{
+		int road_id = 0;
+		int lane_id = 0;
+		Lane* pL = map.GetLaneById(let.id());
+		if(pL != nullptr)
+		{
+			road_id = pL->roadId;
+			lane_id = pL->id;
+		}
+
+		auto signs = let.regulatoryElementsAs<const lanelet::TrafficSign>();
+		for(auto& s: signs)
+		{
+			TrafficSign op_sign;
+			op_sign.groupID = s->id();
+			op_sign.roadId = road_id;
+			UtilityHNS::UtilityH::InsertUniqueInt(op_sign.laneIds, lane_id);
+			  if(pL != nullptr && pL->points.size() > 0)
+			  {
+				  op_sign.horizontal_angle = (pL->points.front().pos.a*UtilityHNS::RAD2DEGC) - 90;
+			  }
+
+			 ExtractSign(s, op_sign);
+
+
+			 lanelet::ConstLineStrings3d traffic_sign_stoplines = s->refLines();
+			 std::vector<StopLine> stop_lines;
+			 ExtractStopLines(traffic_sign_stoplines, stop_lines);
+			 for(auto& sl: stop_lines)
+			 {
+				 sl.stopSignId = s->id();
+				 op_sign.stopLineId = sl.id;
+				 map.stopLines.push_back(sl);
+			 }
+
+			 PlannerHNS::MappingHelpers::InsertUniqueTrafficSign(map.signs, op_sign);
+
+		}
+	}
+}
+
+void Lanelet2MapLoader::ExtractRoadSegmentsFromLanelets(std::vector<RoadSegment>& roads)
+{	//rules for creating roads.
+	// when a lane has side lanes, they all added to one road segment.
+	// lane num is extracted using adjacentlanes numbers
+	// road segment id is created incrementally
+
+	std::vector<lanelet::ConstLanelet*> lets;
+	for(auto& let: m_pL2Map->laneletLayer)
+	{
+		lets.push_back(&let);
+	}
+
+	int road_id = 1;
+	while(lets.size() > 0)
+	{
+		auto road_lanes = m_RoutingGraph->besides(*lets.back());
+		RoadSegment seg;
+		seg.id = road_id;
+		for(auto& l2: road_lanes)
+		{
+			Lane l;
+			l.num = seg.Lanes.size()+1;
+			l.roadId = seg.id;
+
+			//Get Lane Connections
+			//Front Lanes
+			lanelet::ConstLanelets next_lanes = m_RoutingGraph->following(l2);
+			for(auto& center_next : next_lanes)
+			{
+			  UtilityHNS::UtilityH::InsertUniqueInt(l.toIds, center_next.id());
+			}
+
+			//Left and Right Lanes
+			if(seg.Lanes.size() > 0)
+			{
+				l.leftLaneId = seg.Lanes.back().id;
+				seg.Lanes.back().rightLaneId = l.id;
+			}
+
+			//Opposite Lane
+			if(l.num == 1) // for the fist most left lane only
+			{
+				//If this map if left right hand driving, leftBound should be write bound
+				auto oppo_lane = m_pL2Map->laneletLayer.findUsages(l2.leftBound().invert());
+				if(oppo_lane.size() > 0)
+				{
+					l.oppositeLaneId = oppo_lane.back().id();
+				}
+			}
+
+			ExtractLane(l2, l);
+			seg.Lanes.push_back(l);
+			for(unsigned int i=0; i < lets.size(); i++)
+			{
+				if(lets.at(i)->id() == l2.id())
+				{
+					lets.erase(lets.begin()+i);
+					break;
+				}
+			}
+		}
+		roads.push_back(seg);
+		road_id = road_id + 1;
+	}
+}
+
+bool Lanelet2MapLoader::ExtractLane(lanelet::ConstLanelet& let, PlannerHNS::Lane& l)
+{
+	l.id = let.id();
+
+	if(let.hasAttribute("turn_direction"))
+	{
+	  DIRECTION_TYPE dir_type = FORWARD_DIR;
+	  if(let.attributes().at("turn_direction").value().compare("left") == 0)
+	  {
+		  dir_type = FORWARD_LEFT_DIR;
+	  }
+	  else if(let.attributes().at("turn_direction").value().compare("right") == 0)
+	  {
+		  dir_type = FORWARD_RIGHT_DIR;
+	  }
+
+	  for(auto& p: l.points)
+	  {
+		  p.bDir = dir_type;
+	  }
+	}
+
+	if(let.hasAttribute(lanelet::AttributeName::SpeedLimit))
+	{
+		auto speed_limit = let.attribute(lanelet::AttributeName::SpeedLimit).asDouble();
+		l.speed = *speed_limit;
+	}
+	else
+	{
+		l.speed = 0;
+	}
+
+	lanelet::ConstLineString3d center_line = let.centerline();
+	ExtractWayPointsFromLineString(center_line, l.points);
+	for(auto& p: l.points)
+	{
+		p.laneId = l.id;
+	}
+
+	if(m_bCalcWidthForEachPoint)
+	{
+		double width_sum = 0;
+		if(l.points.size() == center_line.size() && l.points.size() > 0)
+		{
+			for(unsigned int i=0; i < l.points.size(); i++)
+			{
+				l.points.at(i).width = lanelet::geometry::distance3d(center_line[i],
+						let.leftBound()) + lanelet::geometry::distance3d(center_line[i], let.rightBound());
+				width_sum += l.points.at(i).width;
+				l.points.at(i).v = l.speed;
+			}
+
+			l.width = width_sum / (double)l.points.size();
+		}
+	}
+	else
+	{
+		l.width = lanelet::geometry::distance3d(let.leftBound3d(), let.rightBound3d());
+		for(auto& p: l.points)
+		{
+			p.width = l.width;
+		}
+	}
+
+	PlannerHNS::PlanningHelpers::CalcAngleAndCost(l.points);
+
+	return true;
+}
+
+void Lanelet2MapLoader::ExtractWayPointsFromLineString(lanelet::ConstLineString3d& line_string, std::vector<WayPoint>& points)
+{
+	for(auto& p : line_string)
+	{
+		PlannerHNS::WayPoint wp;
+		PlannerHNS::RoadNetwork::g_max_point_id++;
+		wp.id = PlannerHNS::RoadNetwork::g_max_point_id;
+		wp.iOriginalIndex = points.size();
+
+		wp.pos.x = p.x();
+		wp.pos.y = p.y();
+		wp.pos.z = p.z();
+
+		if(m_pProjector != nullptr)
+		{
+			lanelet::GPSPoint gps_p = m_pProjector->reverse(p);
+			wp.pos.lon = gps_p.lon;
+			wp.pos.lat = gps_p.lat;
+			wp.pos.alt = gps_p.ele;
+
+			PlannerHNS::MappingHelpers::llaToxyz_proj(m_ProjStr, PlannerHNS::WayPoint(), wp.pos.lat, wp.pos.lon, wp.pos.alt,
+					wp.pos.x, wp.pos.y, wp.pos.z);
+		}
+
+		points.push_back(wp);
+
+		if(points.size() > 1)
+		{
+			int p1 = points.size()-2;
+			int p2 = points.size()-1;
+			points.at(p1).toIds.push_back(points.at(p2).id);
+			points.at(p2).fromIds.push_back(points.at(p1).id);
+		}
+	}
+}
+
+void Lanelet2MapLoader::ExtractWayPointsFromPolygon(lanelet::ConstPolygon3d& line_string, std::vector<WayPoint>& points)
+{
+	for(auto& p : line_string)
+	{
+		PlannerHNS::WayPoint wp;
+		PlannerHNS::RoadNetwork::g_max_point_id++;
+		wp.id = PlannerHNS::RoadNetwork::g_max_point_id;
+		wp.iOriginalIndex = points.size();
+
+		wp.pos.x = p.x();
+		wp.pos.y = p.y();
+		wp.pos.z = p.z();
+
+		if(m_pProjector != nullptr)
+		{
+			lanelet::GPSPoint gps_p = m_pProjector->reverse(p);
+			wp.pos.lon = gps_p.lon;
+			wp.pos.lat = gps_p.lat;
+			wp.pos.alt = gps_p.ele;
+
+			PlannerHNS::MappingHelpers::llaToxyz_proj(m_ProjStr, PlannerHNS::WayPoint(), wp.pos.lat, wp.pos.lon, wp.pos.alt,
+					wp.pos.x, wp.pos.y, wp.pos.z);
+		}
+
+		points.push_back(wp);
+
+		if(points.size() > 1)
+		{
+			int p1 = points.size()-2;
+			int p2 = points.size()-1;
+			points.at(p1).toIds.push_back(points.at(p2).id);
+			points.at(p2).fromIds.push_back(points.at(p1).id);
+		}
+	}
+}
+
+void Lanelet2MapLoader::PrintExistingAttributes()
+{
+	std::vector<std::string> unique_types;
+	std::vector<std::string> unique_subtypes;
+
+	for(auto& let: m_pL2Map->laneletLayer)
+	{
+		bool way = false;
+		if(let.hasAttribute(lanelet::AttributeName::OneWay))
+		{
+			auto one_way = let.attribute(lanelet::AttributeName::OneWay).asBool();
+			way = *one_way;
+		}
+
+		std::cout << "OneWay: " <<  let.attributes()["one_way"] <<   ", Type: " << let.attributes()["type"] << ", " <<  let.attributes()["subtype"] << ", " << let.id() <<  std::endl;
+
+		if(let.hasAttribute("type"))
+		{
+			UtilityHNS::UtilityH::InsertUniqueStringNoCase(unique_types, let.attribute("type").value());
+			if(!let.hasAttribute("subtype"))
+			{
+				unique_subtypes.push_back("");
+			}
+		}
+
+		if(let.hasAttribute("subtype"))
+		{
+			UtilityHNS::UtilityH::InsertUniqueStringNoCase(unique_subtypes, let.attribute("subtype").value());
+			if(!let.hasAttribute("type"))
+			{
+				unique_types.push_back("");
+			}
+		}
+	}
+
+	for(unsigned int i=0; i < unique_types.size(); i++)
+	{
+		std::cout << "Type: " << unique_types.at(i) << ", SubType: " << unique_subtypes.at(i) << std::endl;
 	}
 }
 

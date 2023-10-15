@@ -809,6 +809,70 @@ int ProjectionDataFileReader::ReadAllData()
 }
 
 
+// GPS CSV  data file
+
+GPSCSVDataFileReader::GPSCSVDataFileReader(const GPSDataRecord& proj_data) : SimpleReaderBase("d", 1)
+{
+	header_ = "ProjType,ProjString,Longitude,Latitude,Altitude,X,Y,Z";
+	m_data_list.clear();
+	m_data_list.push_back(proj_data);
+}
+
+bool GPSCSVDataFileReader::ReadNextLine(GPSDataRecord& data)
+{
+	vector<vector<string> > lineData;
+	if(ReadSingleLine(lineData))
+	{
+		if(lineData.size()<=0) return false;
+
+		if(lineData.at(0).size() <= 0) return false;
+		data.gps_time = strtod(lineData.at(0).at(0).c_str(), NULL);
+		if(lineData.at(0).size() <= 1) return false;
+		data.lat = strtod(lineData.at(0).at(1).c_str(), NULL);
+		if(lineData.at(0).size() <= 2) return false;
+		data.lon = strtod(lineData.at(0).at(2).c_str(), NULL);
+		if(lineData.at(0).size() <= 3) return false;
+		data.alt = strtod(lineData.at(0).at(3).c_str(), NULL);
+		if(lineData.at(0).size() <= 4) return false;
+		data.vel_north = strtod(lineData.at(0).at(4).c_str(), NULL);
+		if(lineData.at(0).size() <= 5) return false;
+		data.vel_east = strtod(lineData.at(0).at(5).c_str(), NULL);
+		if(lineData.at(0).size() <= 6) return false;
+		data.vel_up = strtod(lineData.at(0).at(6).c_str(), NULL);
+		if(lineData.at(0).size() <= 7) return false;
+		data.roll = strtod(lineData.at(0).at(7).c_str(), NULL);
+		if(lineData.at(0).size() <= 8) return false;
+		data.pitch = strtod(lineData.at(0).at(8).c_str(), NULL);
+		if(lineData.at(0).size() <= 9) return false;
+		data.yaw = strtod(lineData.at(0).at(9).c_str(), NULL);
+		if(lineData.at(0).size() <= 22) return false;
+		data.utc_time = strtod(lineData.at(0).at(22).c_str(), NULL);
+		return true;
+	}
+	else
+		return false;
+}
+
+int GPSCSVDataFileReader::ReadAllData(vector<GPSDataRecord>& data_list)
+{
+	ReadAllData();
+	data_list = m_data_list;
+	return m_data_list.size();
+}
+
+int GPSCSVDataFileReader::ReadAllData()
+{
+	if(!m_File.is_open()) return 0;
+
+	m_data_list.clear();
+	GPSDataRecord data;
+	while(ReadNextLine(data))
+	{
+		m_data_list.push_back(data);
+	}
+	return m_data_list.size();
+}
+
 
 //Nodes
 

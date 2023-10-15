@@ -29,7 +29,7 @@
 #include <lanelet2_extension/utility/query.h>
 #include <lanelet2_extension/visualization/visualization.h>
 
-#include <amathutils_lib/amathutils.hpp>
+//#include <amathutils_lib/amathutils.hpp>
 
 namespace
 {
@@ -263,10 +263,11 @@ void visualization::lanelet2Triangle(const lanelet::ConstLanelet& ll, std::vecto
       utils::conversion::toGeomMsgPt(p0, &p64_0);
       utils::conversion::toGeomMsgPt(p1, &p64_1);
       utils::conversion::toGeomMsgPt(p2, &p64_2);
-      if (amathutils::isPointLeftFromLine(p64_2, p64_0, p64_1) > 0)
-      {
-        theta = 2 * M_PI - theta;
-      }
+      //To build SMT AMG hatem ASSURE uncomment later
+//      if (amathutils::isPointLeftFromLine(p64_2, p64_0, p64_1) > 0)
+//      {
+//        theta = 2 * M_PI - theta;
+//      }
 
       if (theta < min_angle)
       {

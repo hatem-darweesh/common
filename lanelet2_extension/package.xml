@@ -10,8 +10,7 @@
 
   <buildtool_depend>autoware_build_flags</buildtool_depend>
   <buildtool_depend>catkin</buildtool_depend>
-
-  <depend>amathutils_lib</depend>
+  
   <depend>roscpp</depend>
   <depend>geographiclib</depend>
   <depend>lanelet2_core</depend>

@@ -18,11 +18,11 @@
 namespace UtilityHNS
 {
 
-#define DEG2RAD M_PI / 180.
-#define RAD2DEG 180. / M_PI
+const double DEG2RADC = M_PI / 180.0;
+const double RAD2DEGC = 180.0 / M_PI;
 #define SIGN(x) (x > 0) ? 1 : ((x < 0) ? -1 : 0)
-#define MIN(x,y) (x <= y ? x : y)
-#define MAX(x,y) (x >= y ? x : y)
+#define MIN2V(x,y) (x < y ? x : y)
+#define MAX2V(x,y) (x > y ? x : y)
 
 
 class UtilityH
@@ -62,6 +62,8 @@ public:
 	 * Returns true if inserted , false otherwise
 	 */
 	static bool InsertUniqueStringCase(std::vector<std::string>& list, const std::string& str);
+	static bool InsertUniqueStringNoCase(std::vector<std::string>& list, const std::string& str);
+	static bool InsertUniqueInt(std::vector<int>& list, const int& x);
 };
 
 class PIDController

@@ -57,7 +57,7 @@ bool PlanningHelpers::GetRelativeInfoRange(const std::vector<std::vector<WayPoin
 	{
 		RelativeInfo info_item;
 		GetRelativeInfo(trajectories.at(i), p, info_item);
-		double angle_diff = UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(info_item.perp_point.pos.a, p.pos.a)*RAD2DEG;
+		double angle_diff = UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(info_item.perp_point.pos.a, p.pos.a)*UtilityHNS::RAD2DEGC;
 		if(angle_diff < 75)
 		{
 			info_item.iGlobalPath = i;
@@ -171,7 +171,7 @@ bool PlanningHelpers::GetRelativeInfoDirection(const std::vector<WayPoint>& traj
 
 	info.from_back_distance = hypot(info.perp_point.pos.y - prevWP.pos.y, info.perp_point.pos.x - prevWP.pos.x);
 
-	info.angle_diff = UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(p1.pos.a, p.pos.a)*RAD2DEG;
+	info.angle_diff = UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(p1.pos.a, p.pos.a)*UtilityHNS::RAD2DEGC;
 
 	return true;
 }
@@ -249,7 +249,7 @@ bool PlanningHelpers::GetRelativeInfo(const std::vector<WayPoint>& trajectory, c
 
 	info.from_back_distance = hypot(info.perp_point.pos.y - prevWP.pos.y, info.perp_point.pos.x - prevWP.pos.x);
 
-	info.angle_diff = UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(p1.pos.a, p.pos.a)*RAD2DEG;
+	info.angle_diff = UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(p1.pos.a, p.pos.a)*UtilityHNS::RAD2DEGC;
 
 	return true;
 }
@@ -322,7 +322,7 @@ bool PlanningHelpers::GetRelativeInfoLimited(const std::vector<WayPoint>& trajec
 
 		info.from_back_distance = hypot(info.perp_point.pos.y - prevWP.pos.y, info.perp_point.pos.x - prevWP.pos.x);
 
-		info.angle_diff = UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(p1.pos.a, p.pos.a)*RAD2DEG;
+		info.angle_diff = UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(p1.pos.a, p.pos.a)*UtilityHNS::RAD2DEGC;
 
 		info.bAfter = false;
 		info.bBefore = false;
@@ -397,7 +397,7 @@ bool PlanningHelpers::GetRelativeInfoLimited(const std::vector<WayPoint>& trajec
 
 		info.from_back_distance = hypot(info.perp_point.pos.y - prevWP.pos.y, info.perp_point.pos.x - prevWP.pos.x);
 
-		info.angle_diff = UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(p1.pos.a, p.pos.a)*RAD2DEG;
+		info.angle_diff = UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(p1.pos.a, p.pos.a)*UtilityHNS::RAD2DEGC;
 
 		info.bAfter = false;
 		info.bBefore = false;
@@ -492,7 +492,7 @@ bool PlanningHelpers::GetRelativeInfoDirectionLimited(const std::vector<WayPoint
 
 		info.from_back_distance = hypot(info.perp_point.pos.y - prevWP.pos.y, info.perp_point.pos.x - prevWP.pos.x);
 
-		info.angle_diff = UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(p1.pos.a, p.pos.a)*RAD2DEG;
+		info.angle_diff = UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(p1.pos.a, p.pos.a)*UtilityHNS::RAD2DEGC;
 
 		info.bAfter = false;
 		info.bBefore = false;
@@ -567,7 +567,7 @@ bool PlanningHelpers::GetRelativeInfoDirectionLimited(const std::vector<WayPoint
 
 		info.from_back_distance = hypot(info.perp_point.pos.y - prevWP.pos.y, info.perp_point.pos.x - prevWP.pos.x);
 
-		info.angle_diff = UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(p1.pos.a, p.pos.a)*RAD2DEG;
+		info.angle_diff = UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(p1.pos.a, p.pos.a)*UtilityHNS::RAD2DEGC;
 
 		info.bAfter = false;
 		info.bBefore = false;
@@ -966,7 +966,7 @@ int PlanningHelpers::GetClosestNextPointIndexDirectionFast(const vector<WayPoint
 	for(unsigned int i=prevIndex; i< size; i++)
 	{
 		d  = distance2pointsSqr(trajectory.at(i).pos, p.pos);
-		double angle_diff = UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(trajectory.at(i).pos.a, p.pos.a)*RAD2DEG;
+		double angle_diff = UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(trajectory.at(i).pos.a, p.pos.a)*UtilityHNS::RAD2DEGC;
 		double index_diff = (int)i - prevIndex; //just for carla
 		//if(d < minD && angle_diff < 45)
 		if(d < minD && angle_diff < 45 && index_diff < 100) //just for carla
@@ -1905,7 +1905,7 @@ void PlanningHelpers::CalcAngleAndCurvatureCost(vector<WayPoint>& path)
  * 0 means angle change almost 180 degrees
  * @return number of bad points (with curvature percentage less than the smooth_limit)
  */
-int PlanningHelpers::IsSmoothCurve(const std::vector<WayPoint>& curve, double smooth_limit)
+int PlanningHelpers::IsCurveSmooth(const std::vector<WayPoint>& curve, double smooth_limit)
 {
 	if(curve.size() < 3) return 0;
 
@@ -1929,16 +1929,41 @@ int PlanningHelpers::IsSmoothCurve(const std::vector<WayPoint>& curve, double sm
 * nIterations is the maximum number of applying smooth to the path before giving up
 * the function will return the actual number of iterations used
 */
-int PlanningHelpers::SmoothCurve(std::vector<WayPoint>& path, double smooth_limit, double nMaxIterations)
+int PlanningHelpers::SmoothCurveIterationsLimit(std::vector<WayPoint>& path, double smooth_limit, int nMaxIterations)
 {
+	if(path.size() < 3) return 0;
+
 	int iterations = 0;
-	while(IsSmoothCurve(path, smooth_limit) > 0 && iterations < nMaxIterations)
+	while(IsCurveSmooth(path, smooth_limit) > 0 && iterations < nMaxIterations)
 	{
 		SmoothPath(path, 0.48, 0.1, 0.05);
 		iterations++;
 	}
 
 	return iterations;
+}
+
+/**
+* Smooth until smoothing threshold reached
+* Smooth limit, is a percentag from 0-100 (0-1.0) indicate how smooth the path is.
+* distance_thresh is the maximum change length of the curve after smoothing
+* the function will return the actual change in distance
+*/
+double PlanningHelpers::SmoothCurveDistanceLimit(std::vector<WayPoint>& curve, double smooth_limit, double distance_thresh)
+{
+	if(curve.size() < 3) return 0;
+
+	CalcAngleAndCost(curve);
+	double initial_d = curve.back().distanceCost;
+	double d_diff = 0.0;
+	while(IsCurveSmooth(curve, smooth_limit) > 0 && d_diff < distance_thresh)
+	{
+		SmoothPath(curve, 0.48, 0.1, 0.05);
+		CalcAngleAndCost(curve);
+		d_diff = fabs(initial_d - curve.back().distanceCost);
+	}
+
+	return d_diff;
 }
 
 /**
@@ -2950,7 +2975,7 @@ WayPoint* PlanningHelpers::BuildPlanningSearchTreeV2(WayPoint* pStart,
 		double angle_to_goal = UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(UtilityHNS::UtilityH::FixNegativeAngle(pH->pos.a), UtilityHNS::UtilityH::FixNegativeAngle(goalPos.pos.a));
 		if( distance_to_goal <= 0.1 && angle_to_goal < M_PI_4)
 		{
-			cout << "Goal Found, LaneID: " << pH->laneId <<", Distance : " << distance_to_goal << ", Angle: " << angle_to_goal*RAD2DEG << endl;
+			cout << "Goal Found, LaneID: " << pH->laneId <<", Distance : " << distance_to_goal << ", Angle: " << angle_to_goal*UtilityHNS::RAD2DEGC << endl;
 			pGoalCell = pH;
 			break;
 		}
@@ -4004,11 +4029,11 @@ int PlanningHelpers::PointInsidePolygon(const std::vector<GPSPoint>& points,cons
           {
             p2 = points.at(i % N);
 
-            if (p.y > MIN(p1.y,p2.y))
+            if (p.y > MIN2V(p1.y,p2.y))
             {
-              if (p.y <= MAX(p1.y,p2.y))
+              if (p.y <= MAX2V(p1.y,p2.y))
               {
-                if (p.x <= MAX(p1.x,p2.x))
+                if (p.x <= MAX2V(p1.x,p2.x))
                 {
                   if (p1.y != p2.y)
                   {
@@ -4042,11 +4067,11 @@ int PlanningHelpers::PointInsidePolygon(const std::vector<WayPoint>& points,cons
 	{
 		p2 = points.at(i % N);
 
-		if (p.pos.y > MIN(p1.pos.y,p2.pos.y))
+		if (p.pos.y > MIN2V(p1.pos.y,p2.pos.y))
 		{
-		  if (p.pos.y <= MAX(p1.pos.y,p2.pos.y))
+		  if (p.pos.y <= MAX2V(p1.pos.y,p2.pos.y))
 		  {
-			if (p.pos.x <= MAX(p1.pos.x,p2.pos.x))
+			if (p.pos.x <= MAX2V(p1.pos.x,p2.pos.x))
 			{
 			  if (p1.pos.y != p2.pos.y)
 			  {
@@ -4069,6 +4094,50 @@ int PlanningHelpers::PointInsidePolygon(const std::vector<WayPoint>& points,cons
 	{
 		return 1;
 	}
+}
+
+bool PlanningHelpers::PointInsidePolygonAprrox(const std::vector<WayPoint>& points,const WayPoint& p)
+{
+	int counter = 0;
+	double x_inters = 0;
+	WayPoint p1, p2;
+
+	if(points.size() == 0) return false;
+
+	p1 = points.at(0);
+	for (int i=1; i<=points.size(); i++)
+	{
+	    p2 = points.at(i % points.size());
+
+	    if (p.pos.y >= MIN2V(p1.pos.y, p2.pos.y))
+	    {
+	    	if (p.pos.y <= MAX2V(p1.pos.y, p2.pos.y))
+	    	{
+	    		if (p.pos.x <= MAX2V(p1.pos.x, p2.pos.x))
+	    		{
+	    			if (fabs(p1.pos.x - p2.pos.x) > 0.00001)
+	    			{
+	    				x_inters = (p.pos.y-p1.pos.y)*(p2.pos.x-p1.pos.x)/(p2.pos.y-p1.pos.y)+p1.pos.x;
+	    				if (fabs(p1.pos.x - p2.pos.x) < 0.00001 || p.pos.x <= x_inters)
+	    				{
+	    					counter++;
+	    				}
+	    			}
+	    		}
+	    	}
+	    }
+
+	    p1 = p2;
+	  }
+
+	  if (counter % 2 == 0)
+	  {
+		  return false;
+	  }
+	  else
+	  {
+		  return true;
+	  }
 }
 
 /**

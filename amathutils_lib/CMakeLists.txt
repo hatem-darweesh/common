@@ -11,11 +11,11 @@ find_package(catkin REQUIRED COMPONENTS
   tf2
 )
 
-set(CMAKE_CXX_FLAGS "-O2 -Wall ${CMAKE_CXX_FLAGS}")
+## set(CMAKE_CXX_FLAGS "-O2 -Wall ${CMAKE_CXX_FLAGS}")
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES amathutils_lib
+  LIBRARIES ${PROJECT_NAME}
   CATKIN_DEPENDS autoware_msgs
   tf
   tf2
@@ -26,17 +26,17 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-add_library(amathutils_lib
+add_library(${PROJECT_NAME}
   src/Amathutils.cpp
   src/kalman_filter.cpp
   src/time_delay_kalman_filter.cpp
   src/butterworth_filter.cpp
 )
-target_link_libraries(amathutils_lib
+target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )
 
-add_dependencies(amathutils_lib
+add_dependencies(${PROJECT_NAME}
   ${catkin_EXPORTED_TARGETS}
 )
 
@@ -45,7 +45,7 @@ install(DIRECTORY include/${PROJECT_NAME}/
   FILES_MATCHING PATTERN "*.hpp"
 )
 
-install(TARGETS amathutils_lib
+install(TARGETS ${PROJECT_NAME}
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

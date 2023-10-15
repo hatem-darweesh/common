@@ -96,7 +96,7 @@ void VelocityHandler::callbackGetVehicleStatus(const autoware_msgs::VehicleStatu
 	if(m_pVehicleState == nullptr || m_pCurrentPose == nullptr) return;
 
 	m_pVehicleState->speed = msg->speed/3.6;
-	m_pVehicleState->steer = -msg->angle*DEG2RAD;
+	m_pVehicleState->steer = -msg->angle*UtilityHNS::DEG2RADC;
 	m_pCurrentPose->v = m_pVehicleState->speed;
 }
 

@@ -58,6 +58,16 @@ enum MAP_SOURCE_FORMAT
 	MAP_LANELET2
 };
 
+enum FORWARD_JUNCTION_TYPE
+{
+	// Junction Type
+	NO_CONNECTION_TYPE = 0, //*  0 : no lane connection
+	ONE_TO_ONE_CONNECTION_TYPE = 1, //*  1: the lane only connected to next lane
+	ONE_TO_MANY_CONNECTION_TYPE = 2, //*  2: the lane is connected to many lanes, which their from connection is only this lane
+	MANY_TO_MANY_CONNECTION_TYPE = 3, //*  3: the lane is connected to many lanes, which have multiple from connections
+	NOT_SUPPORTED_CONNECTION_TYPE = 4 //* 4: should raise a connection error
+};
+
 enum DIRECTION_TYPE {	FORWARD_DIR, FORWARD_LEFT_DIR, FORWARD_RIGHT_DIR,
 	BACKWARD_DIR, BACKWARD_LEFT_DIR, BACKWARD_RIGHT_DIR, STANDSTILL_DIR};
 
@@ -139,7 +149,7 @@ enum CustomBehaviorType{CUSTOM_AVOIDANCE_DISABLED = 0, CUSTOM_AVOIDANCE_ENABLED 
 enum MARKING_COLOR{MARK_WHITE, MARK_YELLOW, MARK_RED, MARK_ORANG, MARK_BLUE, MARK_GREEN};
 
 enum LINE_TYPE{DOTTED_LINE, SOLID_LINE, DOUBLE_DOTTED_LINE, DOUBLE_SOLID_LINE, SHOULDER_LINE, LINE_STOP_LINE,
-	LINE_RUMBLE_STRIP, LINE_GIVE_WAY, LINE_NOT_DEFINED, LINE_HATCH, LINE_PARKING_ENVELOPE, LINE_EDGE, LINE_BUS_LANE, LINE_NO_PASSING
+	LINE_RUMBLE_STRIP, LINE_GIVE_WAY, LINE_NOT_DEFINED, LINE_HATCH, LINE_PARKING_ENVELOPE, LINE_EDGE, LINE_BUS_LANE, LINE_NO_PASSING, LINE_CROSSING_LINE
 };
 
 enum TRAFFIC_SIGN_TYPE {UNKNOWN_SIGN, STOP_SIGN, MAX_SPEED_SIGN, MIN_SPEED_SIGN, NO_PARKING_SIGN, SCHOOL_CROSSING_SIGN};
@@ -278,11 +288,11 @@ public:
 		  {
 		    p2 = polygon.points.at(i % N);
 
-		    if (p.y > MIN(p1.y,p2.y))
+		    if (p.y > MIN2V(p1.y,p2.y))
 		    {
-		      if (p.y <= MAX(p1.y,p2.y))
+		      if (p.y <= MAX2V(p1.y,p2.y))
 		      {
-		        if (p.x <= MAX(p1.x,p2.x))
+		        if (p.x <= MAX2V(p1.x,p2.x))
 		        {
 		          if (p1.y != p2.y)
 		          {
@@ -889,6 +899,7 @@ public:
 	}
 };
 
+
 class Lane
 {
 public:
@@ -907,6 +918,7 @@ public:
 	double length;
 	LaneType type;
 	OPID junctionId;
+	FORWARD_JUNCTION_TYPE junctionType;
 	double width;
 	int lane_change;
 	std::vector<WayPoint> points;
@@ -943,6 +955,7 @@ public:
 		oppositeLaneId = 0;
 		fromAreaId = 0;
 		toAreaId = 0;
+		junctionType = NO_CONNECTION_TYPE;
 	}
 
 	void clearPointers()
@@ -952,6 +965,16 @@ public:
 		this->pLeftLane = nullptr;
 		this->pRightLane = nullptr;
 		this->pOpposite = nullptr;
+	}
+
+	WayPoint* GetWayPointById(OPID _id)
+	{
+		if(_id <= 0) return nullptr;
+
+		for(auto& p: points) {
+			if(p.id == _id) return &p;
+		}
+		return nullptr;
 	}
 
 };
@@ -1183,6 +1206,7 @@ public:
 	void ReplaceRoadIdWith(const OPID& old_id, const OPID& id);
 	Lane* GetLaneByWaypointId(const OPID& wp_id);
 	Lane* GetLaneById(const OPID& laneId);
+	WayPoint* GetWayPointById(const OPID& pointId);
 	RoadSegment* GetSegmentById(const OPID& roadId);
 	RoadSegment* GetSegmentByLaneId(const OPID& laneId);
 	Junction* FindJunction(const OPID& connectingRoadId, const OPID& incommingRoadId);
@@ -1833,7 +1857,7 @@ public:
 
 	T GetEnum(const int& _enum_index)
 	{
-		if(_enum_index >= 0 && _enum_index < _enum_str_list.size())
+		if(_enum_index >= 0 && _enum_index < (int)_enum_str_list.size())
 		{
 			return _enum_str_list.at(_enum_index).first;
 		}
@@ -1901,7 +1925,8 @@ static EnumString<LINE_TYPE> LineTypesStr(DOTTED_LINE,
 		{LINE_EDGE, "Edge Line"},
 		{LINE_BUS_LANE, "Bus Lane"},
 		{LINE_NO_PASSING, "No Passing Line"},
-		{LINE_NOT_DEFINED, "N//A"}
+		{LINE_NOT_DEFINED, "N//A"},
+		{LINE_CROSSING_LINE, "Crossing"}
 });
 
 static EnumString<MARKING_COLOR> MarkColorsStr(MARK_WHITE,
@@ -1913,6 +1938,51 @@ static EnumString<MARKING_COLOR> MarkColorsStr(MARK_WHITE,
 		{MARK_BLUE, "blue"},
 		{MARK_GREEN, "green"},
 });
+
+static EnumString<FORWARD_JUNCTION_TYPE> LaneForwardJunctionStr(NO_CONNECTION_TYPE,
+{
+		{NO_CONNECTION_TYPE, "single_lane"},
+		{ONE_TO_ONE_CONNECTION_TYPE, "one_to_one"},
+		{ONE_TO_MANY_CONNECTION_TYPE, "one_to_many"},
+		{MANY_TO_MANY_CONNECTION_TYPE, "many_to_many"},
+		{NOT_SUPPORTED_CONNECTION_TYPE, "not_supported"},
+});
+
+static EnumString<BOUNDARY_TYPE> BOUNDARY_TYPE_STR(NORMAL_ROAD_BOUNDARY,
+		{
+				{NORMAL_ROAD_BOUNDARY, "Road"},
+				{INTERSECTION_BOUNDARY, "Intersection"},
+				{CROSSING_BOUNDARY, "Crossing"},
+				{UTURN__BOUNDARY, "U turn"},
+				{EXIT_ROAD_BOUNDARY, "Road exit"},
+				{MERGE_ROAD_BOUNDARY, "Merge"},
+				{HIGHWAY_BOUNDARY, "Highway"},
+				{PARKING_BOUNDARY, "Parking"},
+				{FREE_SPACE_BOUNDARY, "Free space"},
+				{VEGETATION_BOUNDARY, "Vegetation"},
+				{KEEP_OUT_BOUNDARY, "Keep out"},
+				{BUILDING_BOUNDARY, "Building"},
+				{TRAFFIC_ISLAN_BOUNDARY, "Island"},
+				{WALK_WAY_BOUNDARY, "Walkway"},
+				{SHARED_WALK_WAY_BOUNDARY, "Sharedway"},
+				{EXIT_BOUNDARY, "Exit"},
+		});
+
+
+static EnumString<MARKING_TYPE> MARKING_TYPE_STR(UNKNOWN_MARK,
+		{
+				{UNKNOWN_MARK, "unknown"},
+				{TEXT_MARK, "text"},
+				{AF_MARK, "arrow_forward"},
+				{AL_MARK, "arrow_left"},
+				{AR_MARK, "arrow_right"},
+				{AFL_MARK, "arrow_forward_left"},
+				{AFR_MARK, "arrow_forward_right"},
+				{ALR_MARK, "arrow_left_right"},
+				{UTURN_MARK, "uturn"},
+				{NOUTURN_MARK, "no_uturn"},
+				{POLYGON_MARK, "polygon"},
+		});
 
 }
 

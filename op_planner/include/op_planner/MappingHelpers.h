@@ -16,27 +16,6 @@
 
 namespace PlannerHNS {
 
-
-static EnumString<BOUNDARY_TYPE> BOUNDARY_TYPE_STR(NORMAL_ROAD_BOUNDARY,
-		{
-				{NORMAL_ROAD_BOUNDARY, "Road"},
-				{INTERSECTION_BOUNDARY, "Intersection"},
-				{CROSSING_BOUNDARY, "Crossing"},
-				{UTURN__BOUNDARY, "U turn"},
-				{EXIT_ROAD_BOUNDARY, "Road exit"},
-				{MERGE_ROAD_BOUNDARY, "Merge"},
-				{HIGHWAY_BOUNDARY, "Highway"},
-				{PARKING_BOUNDARY, "Parking"},
-				{FREE_SPACE_BOUNDARY, "Free space"},
-				{VEGETATION_BOUNDARY, "Vegetation"},
-				{KEEP_OUT_BOUNDARY, "Keep out"},
-				{BUILDING_BOUNDARY, "Building"},
-				{TRAFFIC_ISLAN_BOUNDARY, "Island"},
-				{WALK_WAY_BOUNDARY, "Walkway"},
-				{SHARED_WALK_WAY_BOUNDARY, "Sharedway"},
-				{EXIT_BOUNDARY, "Exit"},
-		});
-
 static EnumString<CustomBehaviorType> CustomBehaviorTypeStr(CUSTOM_AVOIDANCE_DISABLED,
 		{
 				{CUSTOM_AVOIDANCE_DISABLED, "Disabled"},

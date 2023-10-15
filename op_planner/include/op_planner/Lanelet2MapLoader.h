@@ -27,11 +27,13 @@
 #include <lanelet2_extension/utility/utilities.h>
 #include <autoware_lanelet2_msgs/MapBin.h>
 
-namespace PlannerHNS {
+namespace PlannerHNS
+{
+
 
 class Lanelet2MapLoader {
 public:
-	Lanelet2MapLoader();
+	Lanelet2MapLoader(bool bCalcWidthForEachPoint = false);
 	virtual ~Lanelet2MapLoader();
 
 	/**
@@ -49,14 +51,34 @@ public:
 	lanelet::LaneletMapPtr LoadMap(const std::string& fileName, PlannerHNS::RoadNetwork& map);
 
 private:
-	void FromLaneletToRoadNetwork(lanelet::LaneletMapPtr l2_map, PlannerHNS::RoadNetwork& map, lanelet::Projector* proj);
+	lanelet::Projector* m_pProjector = nullptr;
+	std::string m_ProjStr;
+	lanelet::routing::RoutingGraphUPtr m_RoutingGraph;
+	lanelet::LaneletMapPtr m_pL2Map;
+	bool m_bCalcWidthForEachPoint = false;
+
+
+	void FromLaneletToRoadNetwork(lanelet::LaneletMapPtr l2_map, PlannerHNS::RoadNetwork& map, lanelet::Projector* proj, lanelet::routing::RoutingGraphUPtr& routingGraph);
 	void CreateWayPointsFromLineString(const PlannerHNS::RoadNetwork& map,std::vector<PlannerHNS::WayPoint>& points, lanelet::ConstLineString3d& line_string, lanelet::Projector* proj, int lane_id = 0);
 	void CreateWayPointsFromLineString(const PlannerHNS::RoadNetwork& map,std::vector<PlannerHNS::WayPoint>& points, const lanelet::LineString3d& line_string, lanelet::Projector* proj, int lane_id = 0);
 	void CreateWayPointsFromPolygon(const PlannerHNS::RoadNetwork& map, std::vector<PlannerHNS::WayPoint>& points,const lanelet::ConstPolygon3d& line_string, lanelet::Projector* proj, int lane_id = 0);
 	std::vector<PlannerHNS::TrafficLight> CreateTrafficLightsFromLanelet2(const PlannerHNS::RoadNetwork& map, lanelet::AutowareTrafficLightConstPtr& tl_let, lanelet::Projector* proj, int lane_id = 0);
-	std::vector<PlannerHNS::StopLine> CreateStopLinesFromLanelet2(const PlannerHNS::RoadNetwork& map, lanelet::ConstLineString3d& sl_let, lanelet::Projector* proj, int lane_id = 0);
+//	std::vector<PlannerHNS::StopLine> CreateStopLinesFromLanelet2(const PlannerHNS::RoadNetwork& map, lanelet::ConstLineString3d& sl_let, lanelet::Projector* proj, int lane_id = 0);
 	void ExtractFirstLongLatFromFileAsOrigin(const std::string& fileName, PlannerHNS::RoadNetwork& map);
-	void CreateLane(lanelet::routing::RoutingGraphUPtr& routingGraph, lanelet::traffic_rules::TrafficRulesPtr& traffic, lanelet::ConstLanelet& lanelet_obj, PlannerHNS::Lane& l, PlannerHNS::RoadNetwork& map, lanelet::Projector* proj);
+	void CreateLane(lanelet::routing::RoutingGraphUPtr& routingGraph, lanelet::ConstLanelet& lanelet_obj, PlannerHNS::Lane& l, PlannerHNS::RoadNetwork& map, lanelet::Projector* proj);
+
+
+	bool ExtractLane(lanelet::ConstLanelet& let, PlannerHNS::Lane& l);
+	bool ExtractSign(std::shared_ptr<const lanelet::TrafficSign>& ts, PlannerHNS::TrafficSign& op_sign);
+	void ExtractWayPointsFromLineString(lanelet::ConstLineString3d& line_string, std::vector<WayPoint>& points);
+	void ExtractWayPointsFromPolygon(lanelet::ConstPolygon3d& line_string, std::vector<WayPoint>& points);
+	void ExtractRoadSegmentsFromLanelets(std::vector<RoadSegment>& roads);
+	void ExtractSignsFromLanelets(RoadNetwork& map);
+	void ExtractLightsFromLanelets(RoadNetwork& map);
+	void ExtractStopLines(lanelet::ConstLineStrings3d& let_stop_lines, std::vector<StopLine>& stop_lines);
+	void ExtractBoundariesFromLanelets(RoadNetwork& map);
+	void ExtractMarkingsFromLanelets(RoadNetwork& map);
+	void PrintExistingAttributes();
 
 };
 

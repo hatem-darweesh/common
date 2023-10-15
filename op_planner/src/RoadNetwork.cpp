@@ -186,6 +186,20 @@ Lane* RoadNetwork::GetLaneByWaypointId(const OPID& wp_id)
 	return nullptr;
 }
 
+WayPoint* RoadNetwork::GetWayPointById(const OPID& pointId)
+{
+	if(pointId <= 0) return nullptr;
+
+	for(auto& seg: roadSegments)
+	{
+		for(auto& l: seg.Lanes) {
+			WayPoint* pP = l.GetWayPointById(pointId);
+			if(pP != nullptr) return pP;
+		}
+	}
+	return nullptr;
+}
+
 Lane* RoadNetwork::GetLaneById(const OPID& laneId)
 {
 	if(laneId <= 0) return nullptr;

@@ -186,7 +186,7 @@ int TrajectoryFollower::SteerControllerPart(const PlannerHNS::WayPoint& state, c
 //		steerd = m_pidSteer.getPID(current_a-sqrt(m_LateralError), target_a);
 
 
-	//cout << "Error : " << e << ", Current A: " << current_a << ", Target A: " << target_a <<  " Steeting Angle = " << steerd*RAD2DEG << endl;
+	//cout << "Error : " << e << ", Current A: " << current_a << ", Target A: " << target_a <<  " Steeting Angle = " << steerd*UtilityHNS::RAD2DEGC << endl;
 //	if(abs(before_lowpass) < m_Params.MaxSteerAngle*0.5)
 //		steerd = m_lowpassSteer.getFilter(before_lowpass);
 //	else
@@ -338,7 +338,7 @@ void TrajectoryFollower::CalibrationStep(const double& dt, const PlannerHNS::Veh
 	}
 
 	if(fabs(CurrStatus.speed - m_CalibrationRunList.at(m_iNextTest).first)*3.6 <= 1
-			&& fabs(CurrStatus.steer - m_CalibrationRunList.at(m_iNextTest).second)*RAD2DEG <=0.5)
+			&& fabs(CurrStatus.steer - m_CalibrationRunList.at(m_iNextTest).second)*UtilityHNS::RAD2DEGC <=0.5)
 		m_iNextTest++;
 
 	desiredVelocity = m_CalibrationRunList.at(m_iNextTest).first;
@@ -364,7 +364,7 @@ void TrajectoryFollower::LogCalibrationData(const PlannerHNS::VehicleState& curr
 	bool bVelocityReset = false;
 
 	//1- decide reset
-	if((int)(m_prevDesiredState_steer.steer*RAD2DEG) != (int)(desiredState.steer*RAD2DEG))
+	if((int)(m_prevDesiredState_steer.steer*UtilityHNS::RAD2DEGC) != (int)(desiredState.steer*UtilityHNS::RAD2DEGC))
 		bAngleReset = true;
 
 	if((int)(m_prevDesiredState_vel.speed*3.6) != (int)(desiredState.speed*3.6))
@@ -373,9 +373,9 @@ void TrajectoryFollower::LogCalibrationData(const PlannerHNS::VehicleState& curr
 	//2- calculate time and log
 	if(bAngleReset)
 	{
-		startAngle = m_prevCurrState_steer.steer*RAD2DEG;
-		finishAngle = currState.steer*RAD2DEG;
-		originalTargetAngle = m_prevDesiredState_steer.steer*RAD2DEG;
+		startAngle = m_prevCurrState_steer.steer*UtilityHNS::RAD2DEGC;
+		finishAngle = currState.steer*UtilityHNS::RAD2DEGC;
+		originalTargetAngle = m_prevDesiredState_steer.steer*UtilityHNS::RAD2DEGC;
 		t_FromStartToFinish_a = UtilityHNS::UtilityH::GetTimeDiffNow(m_SteerDelayTimer);
 		currVelocity = currState.speed*3.6;
 		UtilityHNS::UtilityH::GetTickCount(m_SteerDelayTimer);
@@ -405,7 +405,7 @@ void TrajectoryFollower::LogCalibrationData(const PlannerHNS::VehicleState& curr
 		finishV = currState.speed*3.6;
 		originalTargetV = m_prevDesiredState_vel.speed*3.6;
 		t_FromStartToFinish_v = UtilityHNS::UtilityH::GetTimeDiffNow(m_VelocityDelayTimer);
-		currSteering = currState.steer*RAD2DEG;
+		currSteering = currState.steer*UtilityHNS::RAD2DEGC;
 		UtilityHNS::UtilityH::GetTickCount(m_VelocityDelayTimer);
 
 		std::ostringstream dataLine;

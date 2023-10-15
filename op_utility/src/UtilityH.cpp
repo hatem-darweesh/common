@@ -7,6 +7,7 @@
 #include <iostream>
 #include <sstream>
 #include <string.h>
+#include <algorithm>
 #include <unistd.h>
 #include <sys/types.h>
 #include <pwd.h>
@@ -253,6 +254,35 @@ bool UtilityH::InsertUniqueStringCase(std::vector<std::string>& list, const std:
 	list.push_back(str);
 	return true;
 }
+
+bool UtilityH::InsertUniqueStringNoCase(std::vector<std::string>& list, const std::string& str)
+{
+	std::string to_compare = str;
+	for(auto s: list)
+	{
+		std::transform(s.begin(), s.end(),s.begin(), ::toupper);
+		std::transform(to_compare.begin(), to_compare.end(),to_compare.begin(), ::toupper);
+		if(s.compare(to_compare) == 0)
+		{
+			return false;
+		}
+	}
+
+	list.push_back(str);
+	return true;
+}
+
+bool UtilityH::InsertUniqueInt(std::vector<int>& list, const int& x)
+{
+	if(std::find(list.begin(), list.end(), x) == list.end())
+	{
+		list.push_back(x);
+		return true;
+	}
+
+	return false;
+}
+
 
 std::string UtilityH::GetFileNameFromPathName(const std::string& path_with_name)
 {

@@ -435,6 +435,57 @@ public:
 	}
 };
 
+class GPSCSVDataFileReader : public SimpleReaderBase
+{
+public:
+	struct GPSDataRecord
+	{
+		double lat;
+		double lon;
+		double alt;
+		double roll;
+		double pitch;
+		double yaw;
+		double vel_north;
+		double vel_east;
+		double vel_up;
+		double gps_time;
+		double utc_time;
+
+	};
+
+	GPSCSVDataFileReader(const std::string& fileName) : SimpleReaderBase(fileName, 1, "gps_data.csv")
+	{
+		header_ = "GPSTime(Sec),Latitude(deg),Longitude(deg),H-Ell(m),VNorth(m/s),VEast(m/s),VUp(m/s),Roll(deg),Pitch(deg),Heading(deg),UTC_Time";
+	}
+
+	GPSCSVDataFileReader(const GPSDataRecord& proj_data);
+	virtual ~GPSCSVDataFileReader(){}
+
+	bool ReadNextLine(GPSDataRecord& data);
+	int ReadAllData(std::vector<GPSDataRecord>& data_list);
+	int ReadAllData();
+	std::vector<GPSDataRecord> m_data_list;
+
+	friend std::ostream& operator<<(std::ostream& os, const GPSDataRecord& obj)
+	{
+	    os << obj.gps_time << ","
+		<< obj.utc_time << ","
+	    << obj.lon << ","
+	    << obj.lat << ","
+	    << obj.alt << ","
+	    << obj.roll << ","
+	    << obj.pitch << ","
+	    << obj.yaw << ","
+		<< obj.vel_north << ","
+		<< obj.vel_east << ","
+		<< obj.vel_up;
+	    return os;
+	}
+};
+
+
+
 class AisanPointsFileReader : public SimpleReaderBase
 {
 public:

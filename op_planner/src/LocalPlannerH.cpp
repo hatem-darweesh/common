@@ -205,8 +205,8 @@ void LocalPlannerH::ReInitializePlanner(const WayPoint& start_pose)
 	 }
 	 else
 	 {
-		 double currSteerDeg = RAD2DEG * m_CurrentSteering;
-		 double desiredSteerDeg = RAD2DEG * m_CurrentSteeringD;
+		 double currSteerDeg = UtilityHNS::RAD2DEGC * m_CurrentSteering;
+		 double desiredSteerDeg = UtilityHNS::RAD2DEGC * m_CurrentSteeringD;
 
 		 double mFact = UtilityHNS::UtilityH::GetMomentumScaleFactor(state.speed);
 		 double diff = desiredSteerDeg - currSteerDeg;
@@ -225,7 +225,7 @@ void LocalPlannerH::ReInitializePlanner(const WayPoint& start_pose)
 			 currSteerDeg += inc;
 		 }
 
-		 m_CurrentSteering = DEG2RAD * currSteerDeg;
+		 m_CurrentSteering = UtilityHNS::DEG2RADC * currSteerDeg;
 	 }
 
 	 m_CurrentShift 	= m_CurrentShiftD;

@@ -108,9 +108,11 @@ public:
 
 	//static double CalcAngleAndCostSimple(std::vector<WayPoint>& path, const double& lastCost = 0);
 
-	static int SmoothCurve(std::vector<WayPoint>& path, double smooth_limit = 0.85, double nMaxIterations = 100);
+	static int SmoothCurveIterationsLimit(std::vector<WayPoint>& path, double smooth_limit = 0.85, int nMaxIterations = 100);
 
-	static int IsSmoothCurve(const std::vector<WayPoint>& curve, double smooth_limit = 0.85);
+	static int IsCurveSmooth(const std::vector<WayPoint>& curve, double smooth_limit = 0.85);
+
+	static double SmoothCurveDistanceLimit(std::vector<WayPoint>& curve, double smooth_limit = 0.85, double distance_thresh = 0.5);
 
 	static void CalcAngleAndCurvatureCost(std::vector<WayPoint>& path);
 
@@ -246,6 +248,8 @@ public:
 	static int PointInsidePolygon(const std::vector<GPSPoint>& points,const GPSPoint& p);
 
 	static int PointInsidePolygon(const std::vector<WayPoint>& points,const WayPoint& p);
+
+	static bool PointInsidePolygonAprrox(const std::vector<WayPoint>& points,const WayPoint& p);
 
 	static void TestQuadraticSpline(const std::vector<WayPoint>& center_line, std::vector<WayPoint>& path);
 

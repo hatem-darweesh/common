@@ -772,7 +772,7 @@ void MappingHelpers::LinkMissingBranchingWayPointsV2(RoadNetwork& map)
 				{
 					if(pWP->toIds.size() > 1)
 					{
-						cout << "Error Error Erro ! Lane: " << pWP->laneId << ", Point: " << pWP->originalMapID << endl;
+						cout << "Error Error Error ! Lane: " << pWP->laneId << ", Point: " << pWP->originalMapID << endl;
 					}
 					else
 					{
@@ -1560,7 +1560,7 @@ void MappingHelpers::FindAdjacentSingleLane(RoadNetwork& map, const OPID& lane_i
 					{
 						RelativeInfo info;
 						PlanningHelpers::GetRelativeInfoLimited(l2.points, wp1, info);
-						double angle_diff = UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(info.perp_point.pos.a, wp1.pos.a)*RAD2DEG;
+						double angle_diff = UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(info.perp_point.pos.a, wp1.pos.a)*UtilityHNS::RAD2DEGC;
 						if(fabs(info.perp_distance) > min_d && fabs(info.perp_distance) < max_d && !info.bAfter && !info.bBefore && angle_diff < 10)
 						{
 							WayPoint* wp2 = &l2.points.at(info.iFront);
@@ -1628,7 +1628,7 @@ void MappingHelpers::FindAdjacentLanesV2(RoadNetwork& map, const double& min_d, 
 							RelativeInfo info;
 							PlanningHelpers::GetRelativeInfoLimited(l2.points, wp1, info);
 
-							double angle_diff = UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(info.perp_point.pos.a, wp1.pos.a)*RAD2DEG;
+							double angle_diff = UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(info.perp_point.pos.a, wp1.pos.a)*UtilityHNS::RAD2DEGC;
 							if(fabs(info.perp_distance) > min_d && fabs(info.perp_distance) < max_d && !info.bAfter && !info.bBefore && angle_diff < 10)
 							{
 								l1.lane_change = 1;
@@ -2076,8 +2076,8 @@ void MappingHelpers::llaToxyz_proj(const std::string& proj_str, const PlannerHNS
 	double _intern_lon = lon;
 
 	double _z = alt;
-	double _x = DEG2RAD*_intern_lon;
-	double _y = DEG2RAD*_intern_lat;
+	double _x = UtilityHNS::DEG2RADC*_intern_lon;
+	double _y = UtilityHNS::DEG2RADC*_intern_lat;
 
 	if(pj_latlong != 0 && pj_utm !=0 )
 	{
@@ -2108,8 +2108,8 @@ void MappingHelpers::xyzTolla_proj(const std::string& proj_str, const PlannerHNS
 	if(pj_latlong != 0 && pj_utm !=0)
 	{
 		pj_transform(pj_utm,pj_latlong, 1, 1, &_lon, &_lat, &_alt);
-		_lon = _lon * RAD2DEG;
-		_lat = _lat * RAD2DEG;
+		_lon = _lon * UtilityHNS::RAD2DEGC;
+		_lat = _lat * UtilityHNS::RAD2DEGC;
 
 		lon = _lon;
 		lat = _lat;
