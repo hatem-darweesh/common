@@ -53,6 +53,9 @@ public:
 			const double& maxSearchDistance, const double& planning_distance, const bool bEnableLaneChange, const std::vector<int>& globalPath,
 			RoadNetwork& map, std::vector<std::vector<WayPoint> >& paths, std::vector<WayPoint*>* all_cell_to_delete = 0);
 
+	std::vector<WayPoint> PlanForDataCollectionUsingDP(const WayPoint& carPos, const std::vector<int>& globalPath,
+			RoadNetwork& map, std::vector<std::vector<WayPoint> >& paths, std::vector<WayPoint*>* all_cell_to_delete = 0);
+
 	 double PlanUsingDPRandom(const WayPoint& start,
 	 		 const double& maxPlanningDistance,
 	 		 RoadNetwork& map,

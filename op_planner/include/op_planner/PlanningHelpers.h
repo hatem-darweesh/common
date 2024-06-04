@@ -173,6 +173,8 @@ public:
 			const double& DistanceLimit,
 			std::vector<WayPoint*>& all_cells_to_delete );
 
+	static std::vector<WayPoint> BuildPlanningSearchTreeForDataCollection(WayPoint* pStart, WayPoint* pGoal, std::vector<WayPoint*>& all_cells_to_delete );
+
 	static int PredictiveDP(WayPoint* pStart, const double& DistanceLimit,
 			std::vector<WayPoint*>& all_cells_to_delete, std::vector<WayPoint*>& end_waypoints);
 

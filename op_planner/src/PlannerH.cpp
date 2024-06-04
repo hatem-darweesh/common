@@ -614,4 +614,137 @@ void PlannerH::GenerateKinematicallyFeasibleTrajectory(const VehicleState& curr_
 	PlanningHelpers::CalcAngleAndCost(path_out);
 }
 
+std::vector<WayPoint> PlannerH::PlanForDataCollectionUsingDP(const WayPoint& start,
+		const std::vector<int>& globalPath, RoadNetwork& map,
+		std::vector<std::vector<WayPoint> >& paths, vector<WayPoint*>* all_cell_to_delete)
+{
+	std::vector<WayPoint> all_goals;
+
+	PlannerHNS::WayPoint* pStart = PlannerHNS::MappingHelpers::GetClosestWaypointFromMap(start, map);
+
+	if(!pStart)
+	{
+		GPSPoint sp = start.pos;
+		cout << endl << "Error: PlannerH -> Can't Find Global Waypoint Nodes in the Map, " << endl;
+		cout << "  Start: " <<  sp.ToString() << endl;
+		return all_goals;
+	}
+
+	if(!pStart->pLane)
+	{
+		cout << endl << "Error: PlannerH -> Null Lane," << endl << "  Start Lane: " << pStart->pLane <<  endl;
+		return all_goals;
+	}
+
+//	if(all_cell_to_delete)
+//		goals =  PlanningHelpers::BuildPlanningSearchTreeForDataCollection(pStart, nullptr, *all_cell_to_delete);
+
+
+
+	std::map<int, WayPoint*> all_map_points_map;
+	for(auto& r: map.roadSegments)
+	{
+		for(auto& l: r.Lanes)
+		{
+			for(auto& p: l.points)
+			{
+				all_map_points_map.insert({p.id, &p});
+			}
+		}
+	}
+
+	paths.clear();
+	int iExitNo = 0;
+//	while(goals.size() > 0 && iExitNo < 15)
+	while(all_map_points_map.size() > 100 && iExitNo < 20)
+	{
+		std::cout << "Iteration: " << iExitNo << std::endl;
+		std::cout << "-----------------------------------" << iExitNo << std::endl;
+
+		vector<WayPoint*> local_cell_to_delete;
+		std::vector<WayPoint> goals =  PlanningHelpers::BuildPlanningSearchTreeForDataCollection(pStart, nullptr, local_cell_to_delete);
+		DeleteWaypoints(local_cell_to_delete);
+
+		//1- find closest goal with minimum cost
+		WayPoint* pClose_goal = nullptr;
+
+		for(auto& g: goals)
+		{
+			std::cout << "Goal ID: " << g.id << std::endl;
+			bool bFound = false;
+			for(auto& finished_goal: all_goals)
+			{
+				double d_g = hypot(finished_goal.pos.y - g.pos.y, finished_goal.pos.x - g.pos.x);
+				double d_s = hypot(pStart->pos.y - g.pos.y, pStart->pos.x - g.pos.x);
+
+				if(finished_goal.id == g.id || g.id == pStart->id || d_g <= 1.0 || d_s <= 1.0)
+				{
+					bFound = true;
+					break;
+				}
+			}
+
+			if(bFound) continue;
+
+			if(pClose_goal == nullptr || g.cost < pClose_goal->cost)
+			{
+				pClose_goal = &g;
+			}
+		}
+
+		std::cout << "Goals No: " << goals.size() << ", Start: " << pStart->id << ", Fronst: " << pStart->pFronts.size() << std::endl;
+
+		if(pClose_goal == nullptr)
+		{
+			std::cout << " Strange !! Can't find any suitable goals, total failure :( " << std::endl;
+			break;
+		}
+
+		all_goals.push_back(*pClose_goal);
+
+		std::cout << "Goal: "<< pClose_goal->id << std::endl;
+
+		std::vector<WayPoint> oneGoal =  PlanningHelpers::BuildPlanningSearchTreeForDataCollection(pStart, pClose_goal, local_cell_to_delete);
+
+		if(oneGoal.size() == 1)
+		{
+			vector<WayPoint> path;
+			vector<vector<WayPoint> > tempCurrentForwardPathss;
+			PlanningHelpers::TraversePathTreeBackwards(&oneGoal.at(0), pStart, globalPath, path, tempCurrentForwardPathss);
+			if(path.size() > 1)
+			{
+		//		path.insert(path.begin(), *pStart);
+				paths.push_back(path);
+
+				std::cout << "Closest DP Path from Goal: " <<  oneGoal.at(0).id << ", To Start: "<< pStart->id << ", " <<  path.size() << std::endl;
+
+				for(unsigned int i=0; i < path.size()-1; i++)
+				{
+					for(auto& fp: path.at(i).pFronts)
+					{
+						if(path.at(i+1).id == fp->id)
+						{
+							std::cout << "Found Front, Updating point cost in Map from : " << fp->cost << ", To: " << fp->cost + 10000.0 << ", MapPoints Remaining" << all_map_points_map.size() << std::endl;
+							fp->cost += 1000.0;
+							auto map_point_it = all_map_points_map.find(fp->id);
+							if(map_point_it != all_map_points_map.end())
+							{
+								all_map_points_map.erase(map_point_it);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		pStart = PlannerHNS::MappingHelpers::GetClosestWaypointFromMap(*pClose_goal, map);
+		iExitNo++;
+		DeleteWaypoints(local_cell_to_delete);
+
+		std::cout << "-----------------------------------" << iExitNo << std::endl;
+	}
+
+	return all_goals;
+}
+
 }

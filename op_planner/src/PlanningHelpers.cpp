@@ -2965,7 +2965,7 @@ WayPoint* PlanningHelpers::BuildPlanningSearchTreeV2(WayPoint* pStart,
 			}
 		}
 
-		WayPoint* pH 	= nextLeafToTrace.at(min_cost_index).second;
+		WayPoint* pH = nextLeafToTrace.at(min_cost_index).second;
 
 		assert(pH != 0);
 
@@ -3186,6 +3186,88 @@ WayPoint* PlanningHelpers::BuildPlanningSearchTreeStraight(WayPoint* pStart,
 		nextLeafToTrace.pop_back();
 
 	return pGoalCell;
+}
+
+/**
+ * Generate Driving search tree for data collection
+ */
+std::vector<WayPoint> PlanningHelpers::BuildPlanningSearchTreeForDataCollection(WayPoint* pStart, WayPoint* pGoal, vector<WayPoint*>& all_cells_to_delete)
+{
+	if(!pStart) return std::vector<WayPoint>();
+
+	vector<WayPoint*>nextLeafToTrace;
+
+	WayPoint* wp = new WayPoint();
+	*wp = *pStart;
+	wp->cost = 0;
+	nextLeafToTrace.push_back(wp);
+	all_cells_to_delete.clear();
+	all_cells_to_delete.push_back(wp);
+
+	double distance = 0;
+	std::vector<WayPoint> goalsCell;
+	double nCounter = 0;
+
+	while(nextLeafToTrace.size()>0)
+	{
+		nCounter++;
+
+		unsigned int min_cost_index = 0;
+		double min_cost = DBL_MAX;
+
+		for(unsigned int i=0; i < nextLeafToTrace.size(); i++)
+		{
+			if(nextLeafToTrace.at(i)->cost < min_cost)
+			{
+				min_cost = nextLeafToTrace.at(i)->cost;
+				min_cost_index = i;
+			}
+		}
+
+		WayPoint* pH 	= nextLeafToTrace.at(min_cost_index);
+		assert(pH != 0);
+
+		nextLeafToTrace.erase(nextLeafToTrace.begin()+min_cost_index);
+
+		if(pGoal != nullptr)
+		{
+			double distance_to_goal = distance2points(pH->pos, pGoal->pos);
+			double angle_to_goal = UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(UtilityHNS::UtilityH::FixNegativeAngle(pH->pos.a), UtilityHNS::UtilityH::FixNegativeAngle(pGoal->pos.a));
+			if( distance_to_goal <= 0.1 && angle_to_goal < M_PI_4)
+			{
+				cout << "Goal Found, LaneID: " << pH->laneId <<", Distance : " << distance_to_goal << ", Angle: " << angle_to_goal*UtilityHNS::RAD2DEGC << endl;
+				goalsCell.clear();
+				goalsCell.push_back(*pH);
+				break;
+			}
+		}
+
+		for(unsigned int i =0; i< pH->pFronts.size(); i++)
+		{
+			bool bNodeExist = CheckNodeExits(all_cells_to_delete, pH->pFronts.at(i));
+			if(pH->pFronts.at(i) && !bNodeExist)
+			{
+				wp = new WayPoint();
+				*wp = *pH->pFronts.at(i);
+
+				double d = hypot(wp->pos.y - pH->pos.y, wp->pos.x - pH->pos.x);
+				distance += d;
+				wp->cost += pH->cost + d;
+				wp->pBacks.push_back(pH);
+				nextLeafToTrace.push_back(wp);
+				all_cells_to_delete.push_back(wp);
+			}
+			else
+			{
+				goalsCell.push_back(*pH);
+			}
+		}
+	}
+
+	while(nextLeafToTrace.size()!=0)
+		nextLeafToTrace.pop_back();
+
+	return goalsCell;
 }
 
 int PlanningHelpers::PredictiveIgnorIdsDP(WayPoint* pStart, const double& DistanceLimit,
