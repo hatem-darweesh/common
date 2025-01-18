@@ -38,10 +38,17 @@ public:
 
 	static TiXmlElement* GetHeadElement(TiXmlElement* pMainElem);
 	static std::vector<int> GetIDsFromPrefix(const std::string& str, const std::string& prefix, const std::string& postfix);
+	static int GetSingleIDFromPrefix(const std::string& str, const std::string& prefix, const std::string& postfix, int default_value);
 	static std::pair<ACTION_TYPE, double> GetActionPairFromPrefix(const std::string& str, const std::string& prefix, const std::string& postfix);
 	static std::vector<std::string> SplitString(const std::string& str, const std::string& token);
 	static std::vector<std::string> GetStringsFromPrefix(const std::string& str, const std::string& prefix, const std::string& postfix);
+	static std::string GetStringFromPrefixV2(const std::string& str, const std::string& prefix, const std::string& postfix, std::string def_value);
+	static std::string GetSingleStringsFromPrefix(const std::string& str, const std::string& prefix, const std::string& postfix, std::string default_value);
 	static std::vector<double> GetDoubleFromPrefix(const std::string& str, const std::string& prefix, const std::string& postfix);
+	static double GetDoubleFromPrefixV2(const std::string& str, const std::string& prefix, const std::string& postfix, double def_value);
+	static int GetIntFromPrefixV2(const std::string& str, const std::string& prefix, const std::string& postfix, int def_value);
+	static double GetSingleDoubleFromPrefix(const std::string& str, const std::string& prefix, const std::string& postfix, double default_value);
+
 
 private:
 	PlannerHNS::RoadNetwork* _pMap;

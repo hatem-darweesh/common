@@ -80,6 +80,9 @@ private:
 	void ExtractMarkingsFromLanelets(RoadNetwork& map);
 	void PrintExistingAttributes();
 
+
+	PlannerHNS::GPSPoint UpdatePointWithProjection(const PlannerHNS::RoadNetwork& map, lanelet::Projector* p_proj, const lanelet::ConstPoint3d& p);
+
 };
 
 } /* namespace PlannerHNS */

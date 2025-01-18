@@ -187,6 +187,10 @@ WayPoint* MappingHelpers::FindWaypointV2(const int& id, const int& l_id, RoadNet
 	return nullptr;
 }
 
+/**
+ * @brief Search for the closest Traffic sign point (distance and angle) then a assign the same groupID to them
+ */
+
 void MappingHelpers::LinkTrafficLightsIntoGroups(RoadNetwork& map)
 {
 	//First get max group ID;
@@ -203,16 +207,25 @@ void MappingHelpers::LinkTrafficLightsIntoGroups(RoadNetwork& map)
 	{
 		if(x.groupID == 0)
 		{
-			max_group_id++;
 			//Find the closest single traffic light bulbs
 			for(auto& c : map.trafficLights)
 			{
-				if(c.groupID == 0)
+//				if(c.groupID == 0)
 				{
 					double d = hypot(x.pose.pos.y - c.pose.pos.y, x.pose.pos.x - c.pose.pos.x);
-					if(d < 1.0 && fabs(x.vertical_angle - c.vertical_angle) < 10 && fabs(x.horizontal_angle - c.horizontal_angle) < 10)
+					if(d < 1.0 &&  UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(x.vertical_angle , c.vertical_angle) < 10
+							&& UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(x.horizontal_angle, c.horizontal_angle) < 10)
 					{
-						c.groupID = max_group_id;
+						if(c.groupID == 0)
+						{
+							max_group_id++;
+							c.groupID = max_group_id;
+							x.groupID = max_group_id;
+						}
+						else
+						{
+							x.groupID = c.groupID;
+						}
 					}
 				}
 			}
@@ -516,75 +529,6 @@ vector<string> MappingHelpers::SplitString(const string& str, const string& toke
 }
 
 /**
- * lane connectivity is nor required, this is done by geometry based search
- */
-void MappingHelpers::FindAdjacentLanes(RoadNetwork& map)
-{
-	for(unsigned int rs = 0; rs < map.roadSegments.size(); rs++)
-	{
-		//Link Lanes
-		for(unsigned int i =0; i < map.roadSegments.at(rs).Lanes.size(); i++)
-		{
-			Lane* pL = &map.roadSegments.at(rs).Lanes.at(i);
-			//Link left and right lanes
-			for(unsigned int rs_2 = 0; rs_2 < map.roadSegments.size(); rs_2++)
-			{
-				for(unsigned int i2 =0; i2 < map.roadSegments.at(rs_2).Lanes.size(); i2++)
-				{
-					int iCenter1 = pL->points.size()/2;
-					WayPoint wp_1 = pL->points.at(iCenter1);
-					int iCenter2 = PlanningHelpers::GetClosestNextPointIndexFast(map.roadSegments.at(rs_2).Lanes.at(i2).points, wp_1 );
-					WayPoint closest_p = map.roadSegments.at(rs_2).Lanes.at(i2).points.at(iCenter2);
-					double mid_a1 = wp_1.pos.a;
-					double mid_a2 = closest_p.pos.a;
-					double angle_diff = UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(mid_a1, mid_a2);
-					double distance = distance2points(wp_1.pos, closest_p.pos);
-
-					if(pL->id != map.roadSegments.at(rs_2).Lanes.at(i2).id && angle_diff < 0.05 && distance < 3.5 && distance > 2.5)
-					{
-						double perp_distance = DBL_MAX;
-						if(pL->points.size() > 2 && map.roadSegments.at(rs_2).Lanes.at(i2).points.size()>2)
-						{
-							RelativeInfo info;
-							PlanningHelpers::GetRelativeInfo(pL->points, closest_p, info);
-							perp_distance = info.perp_distance;
-							//perp_distance = PlanningHelpers::GetPerpDistanceToVectorSimple(pL->points.at(iCenter1-1), pL->points.at(iCenter1+1), closest_p);
-						}
-
-						if(perp_distance > 1.0 && perp_distance < 5.0)
-						{
-							pL->pRightLane = &map.roadSegments.at(rs_2).Lanes.at(i2);
-							for(unsigned int i_internal = 0; i_internal< pL->points.size(); i_internal++)
-							{
-								if(i_internal<map.roadSegments.at(rs_2).Lanes.at(i2).points.size())
-								{
-									pL->points.at(i_internal).RightPointId = map.roadSegments.at(rs_2).Lanes.at(i2).id;
-									pL->points.at(i_internal).pRight = &map.roadSegments.at(rs_2).Lanes.at(i2).points.at(i_internal);
-//									map.roadSegments.at(rs_2).Lanes.at(i2).points.at(i_internal).pLeft = &pL->points.at(i_internal);
-								}
-							}
-						}
-						else if(perp_distance < -1.0 && perp_distance > -5.0)
-						{
-							pL->pLeftLane = &map.roadSegments.at(rs_2).Lanes.at(i2);
-							for(unsigned int i_internal = 0; i_internal< pL->points.size(); i_internal++)
-							{
-								if(i_internal<map.roadSegments.at(rs_2).Lanes.at(i2).points.size())
-								{
-									pL->points.at(i_internal).LeftPointId = map.roadSegments.at(rs_2).Lanes.at(i2).id;
-									pL->points.at(i_internal).pLeft = &map.roadSegments.at(rs_2).Lanes.at(i2).points.at(i_internal);
-//									map.roadSegments.at(rs_2).Lanes.at(i2).points.at(i_internal).pRight = &pL->points.at(i_internal);
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-/**
  * Connect lane's waypoint to boundaries area, geometry based
  */
 void MappingHelpers::ConnectBoundariesToWayPoints(RoadNetwork& map)
@@ -684,6 +628,48 @@ void MappingHelpers::LinkMissingBranchingWayPoints(RoadNetwork& map)
 }
 
 /**
+ * Link using pointers, relation should already exist, this version consider that there are multiple road segments in the Map
+ */
+void MappingHelpers::LinkLanesPointersV2(PlannerHNS::RoadNetwork& map)
+{
+	for(auto& rs: map.roadSegments)
+	{
+		//Clear first
+		for(auto& l: rs.Lanes)
+		{
+			l.toLanes.clear();
+			l.fromLanes.clear();
+			l.pLeftLane = nullptr;
+			l.pRightLane = nullptr;
+			l.pOpposite = nullptr;
+		}
+	}
+
+	for(auto& seg: map.roadSegments)
+	{
+		//Clear first
+		for(auto& l: seg.Lanes)
+		{
+			l.pRoad = &seg;
+			for(auto& p: l.points)
+			{
+				p.pLane = &l;
+			}
+
+			for(auto id: l.toIds)
+			{
+				l.toLanes.push_back(map.GetLaneById(id));
+			}
+
+			for(auto id: l.fromIds)
+			{
+				l.fromLanes.push_back(map.GetLaneById(id));
+			}
+		}
+	}
+}
+
+/**
  * Link using pointers, relation should already exist
  */
 void MappingHelpers::LinkLanesPointers(PlannerHNS::RoadNetwork& map)
@@ -695,6 +681,9 @@ void MappingHelpers::LinkLanesPointers(PlannerHNS::RoadNetwork& map)
 		{
 			l.toLanes.clear();
 			l.fromLanes.clear();
+			l.pLeftLane = nullptr;
+			l.pRightLane = nullptr;
+			l.pOpposite = nullptr;
 		}
 	}
 
@@ -992,6 +981,90 @@ void MappingHelpers::UpdateMapWithOccupancyGrid(OccupancyToGridMap& map_info, co
 	}
 }
 
+/**
+ * Assumptions:
+ * - No relations with other lanes (left, right, from, to)
+ * - Only relation is from and to point
+ * - only rely on 2D distance between points
+ * No new points vector will be created, no pointer relation should be exist, if so this function will output an error
+ *
+ */
+void MappingHelpers::FixRedundantPoints(std::vector<WayPoint>& points, int path_min_size, double max_distance)
+{
+
+//	if(points.size() < path_min_size)
+//	{
+//		std::cout << "  Warning: Not valid path, points number = " << points.size() << ", FixRedundantPoints will not perform any calculations!" << std::endl;
+//		return;
+//	}
+//
+//	if(points.size() == path_min_size)
+//	{
+//		std::cout << "  Warning: Fix two points path first, points number = " << points.size() << ", FixRedundantPoints will not perform any calculations!" << std::endl;
+//		return;
+//	}
+//
+//	if(points.front().pBacks.size() > 0 || points.front().pFronts.size() > 0)
+//	{
+//		std::cout << "  Warning: Pointers for next point or Previous point are assigned, FixRedundantPoints will continue, but reassign or fix these pointers is a must!" << std::endl;
+//	}
+
+	std::vector<WayPoint> points_updated = points;
+
+	for(int i=1; i<points_updated.size(); i++)
+	{
+		double d = hypot(points_updated.at(i).pos.y-points_updated.at(i-1).pos.y, points_updated.at(i).pos.x-points_updated.at(i-1).pos.x);
+
+		if(d <= max_distance)
+		{
+			points_updated.at(i-1).toIds = points_updated.at(i).toIds;
+			points_updated.at(i-1).originalMapID = points_updated.at(i).originalMapID;
+
+			if(i+1 < points_updated.size())
+			{
+				points_updated.at(i+1).fromIds = points_updated.at(i).fromIds;
+			}
+
+			points_updated.erase(points_updated.begin()+i);
+			i--;
+		}
+	}
+
+	if(points_updated.size() < path_min_size)
+	{
+		std::cout << "  Error: FixRedundantPoints will not modify points, too many redundant points, final points size: " << points_updated.size() << ", original size: " << points.size() << std::endl;
+		return;
+	}
+
+	points = points_updated;
+}
+
+void MappingHelpers::FixTwoPointsPoints(std::vector<WayPoint>& points)
+{
+	if(points.size() == 2)
+	{
+		RoadNetwork::g_max_point_id++;
+		WayPoint wp = points.at(0);
+		wp.id = RoadNetwork::g_max_point_id;
+		wp.fromIds.clear();
+		wp.fromIds.push_back(points.at(0).id);
+		wp.toIds.clear();
+		wp.toIds.push_back(points.at(1).id);
+
+		points.at(0).toIds.clear();
+		points.at(0).toIds.push_back(wp.id);
+
+		points.at(1).fromIds.clear();
+		points.at(1).fromIds.push_back(wp.id);
+
+		wp.pos.x = (points.at(0).pos.x + points.at(1).pos.x)/2.0;
+		wp.pos.y = (points.at(0).pos.y + points.at(1).pos.y)/2.0;
+		wp.pos.z = (points.at(0).pos.z + points.at(1).pos.z)/2.0;
+
+		points.insert(points.begin()+1, wp);
+
+	}
+}
 
 /**
  * remove points at the same location, only one point should remain.
@@ -1052,6 +1125,9 @@ void MappingHelpers::FixTwoPointsLane(Lane& l)
 		wp.pos.z = (l.points.at(0).pos.z + l.points.at(1).pos.z)/2.0;
 
 		l.points.insert(l.points.begin()+1, wp);
+
+		cout << "Fixed Two Points Lane:" << l.id << endl;
+
 	}
 	else if(l.points.size() < 2)
 	{
@@ -1081,6 +1157,100 @@ void MappingHelpers::FixTwoPointsLanes(std::vector<Lane>& lanes)
 	{
 		FixTwoPointsLane(lanes.at(il));
 		PlannerHNS::PlanningHelpers::CalcAngleAndCost(lanes.at(il).points);
+	}
+}
+
+/**
+ * remove points at the same location, only one point should remain.
+ */
+void MappingHelpers::FixRedundantPointsLines(std::vector<Line>& lines)
+{
+	for(unsigned int il=0; il < lines.size(); il ++)
+	{
+		for(int ip = 1; ip < lines.at(il).points.size(); ip++)
+		{
+			WayPoint* p1 = &lines.at(il).points.at(ip-1);
+			WayPoint* p2 = &lines.at(il).points.at(ip);
+			WayPoint* p3 = nullptr;
+			if(ip+1 < lines.at(il).points.size())
+				p3 = &lines.at(il).points.at(ip+1);
+
+			double d = hypot(p2->pos.y-p1->pos.y, p2->pos.x-p1->pos.x);
+			if(d == 0)
+			{
+				p1->toIds = p2->toIds;
+				p1->originalMapID = p2->originalMapID;
+				if(p3 != nullptr)
+					p3->fromIds = p2->fromIds;
+
+				lines.at(il).points.erase(lines.at(il).points.begin()+ip);
+				ip--;
+
+				if(DEBUG_MAP_PARSING)
+					cout << "Fixed Redundant Points for Lane:" << lines.at(il).id << ", Current: " << ip << ", Size: " << lines.at(il).points.size() << endl;
+			}
+		}
+	}
+}
+
+/**
+ * any lane should have at least 3 waypoints, this function add additional midpoints to any lane with only two waypoints.
+ */
+void MappingHelpers::FixTwoPointsLine(Line& l)
+{
+	if(l.points.size() == 2)
+	{
+		RoadNetwork::g_max_point_id++;
+		WayPoint wp = l.points.at(0);
+		wp.id = RoadNetwork::g_max_point_id;
+		wp.fromIds.clear();
+		wp.fromIds.push_back(l.points.at(0).id);
+		wp.toIds.clear();
+		wp.toIds.push_back(l.points.at(1).id);
+
+		l.points.at(0).toIds.clear();
+		l.points.at(0).toIds.push_back(wp.id);
+
+		l.points.at(1).fromIds.clear();
+		l.points.at(1).fromIds.push_back(wp.id);
+
+		wp.pos.x = (l.points.at(0).pos.x + l.points.at(1).pos.x)/2.0;
+		wp.pos.y = (l.points.at(0).pos.y + l.points.at(1).pos.y)/2.0;
+		wp.pos.z = (l.points.at(0).pos.z + l.points.at(1).pos.z)/2.0;
+
+		l.points.insert(l.points.begin()+1, wp);
+
+		cout << "Fixed Two Points Lane:" << l.id << endl;
+
+	}
+	else if(l.points.size() < 2)
+	{
+		cout << "## WOW Lane " <<  l.id << " With Size (" << l.points.size() << ") " << endl;
+	}
+}
+
+/**
+ * Two functionality:
+ * - Update the g_max_point_id to the max of any point id in the lanes list
+ * - FixTwoPointsLane
+ */
+void MappingHelpers::FixTwoPointsLines(std::vector<Line>& lines)
+{
+	for(unsigned int il=0; il < lines.size(); il ++)
+	{
+		for(unsigned int ip = 0; ip < lines.at(il).points.size(); ip++)
+		{
+			if(lines.at(il).points.at(ip).id > RoadNetwork::g_max_point_id)
+			{
+				RoadNetwork::g_max_point_id = lines.at(il).points.at(ip).id;
+			}
+		}
+	}
+
+	for(unsigned int il=0; il < lines.size(); il ++)
+	{
+		FixTwoPointsLine(lines.at(il));
+		PlannerHNS::PlanningHelpers::CalcAngleAndCost(lines.at(il).points);
 	}
 }
 
@@ -1175,7 +1345,6 @@ void MappingHelpers::FixUnconnectedLanes(std::vector<Lane>& lanes, const int& ma
 	}
 
 	std::vector<Lane> sp_lanes = lanes;
-	bool bAtleastOneChange = false;
 	//Find before lanes
 	for(unsigned int il=0; il < lanes.size(); il ++)
 	{
@@ -1227,7 +1396,6 @@ void MappingHelpers::FixUnconnectedLanes(std::vector<Lane>& lanes, const int& ma
 
 					pFL->points.at(0).fromIds.push_back(pL->points.at(closest_info.iFront).id);
 					pFL->fromIds.push_back(pL->id);
-					bAtleastOneChange = true;
 					if(DEBUG_MAP_PARSING)
 					{
 						cout << "Closest Next Lane For: " << pFL->id << " , Is:" << pL->id << ", Distance=" << fabs(closest_info.perp_distance) << ", Size: " << pL->points.size() << ", back_index: " << closest_info.iBack <<", front_index: " << closest_info.iFront << ", Direct: " << closest_info.angle_diff << endl;
@@ -1299,7 +1467,6 @@ void MappingHelpers::FixUnconnectedLanes(std::vector<Lane>& lanes, const int& ma
 
 						sp_lanes.push_back(front_half);
 						sp_lanes.push_back(back_half);
-						bAtleastOneChange = true;
 					}
 					else
 					{
@@ -1371,7 +1538,6 @@ void MappingHelpers::FixUnconnectedLanes(std::vector<Lane>& lanes, const int& ma
 					pBL->points.at(pBL->points.size()-1).toIds.push_back(pL->points.at(closest_info.iFront).id);
 					pBL->toIds.push_back(pL->id);
 
-					bAtleastOneChange = true;
 					if(DEBUG_MAP_PARSING)
 					{
 						cout << "Closest Back Lane For: " << pBL->id << " , Is:" << pL->id << ", Distance=" << fabs(closest_info.perp_distance) << ", Size: " << pL->points.size() << ", back_index: " << closest_info.iBack <<", front_index: " << closest_info.iFront << ", Direct: " << closest_info.angle_diff << endl;
@@ -1442,7 +1608,6 @@ void MappingHelpers::FixUnconnectedLanes(std::vector<Lane>& lanes, const int& ma
 
 						sp_lanes.push_back(front_half);
 						sp_lanes.push_back(back_half);
-						bAtleastOneChange = true;
 					}
 					else
 					{
@@ -1529,6 +1694,302 @@ void MappingHelpers::LinkTrafficLightsAndStopLinesV2(RoadNetwork& map)
 					{
 						map.roadSegments.at(rs).Lanes.at(i).trafficlights.push_back(map.trafficLights.at(itl));
 						break;
+					}
+				}
+			}
+		}
+	}
+}
+
+bool MappingHelpers::IsLaneOpposite(const Lane& lane1, const Lane& lane2, bool bDebug)
+{
+	double additional_limit = 2.0;
+	double distance_limit = lane1.width/2.0 + lane2.width/2.0 + additional_limit;
+	std::vector<WayPoint> l1 = lane1.points;
+	std::vector<WayPoint> l2 = lane2.points;
+
+	PlanningHelpers::CalcAngleAndCost(l1);
+	PlanningHelpers::CalcAngleAndCost(l2);
+
+	//1: Check the start point and end point that both has same direction and distance is less than the predefined max_distance
+	double angle_diff_front = fabs(UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(l1.front().pos.a, l2.front().pos.a));
+	double distance_diff_front = hypot(l2.front().pos.y - l1.back().pos.y, l2.front().pos.x - l1.back().pos.x);
+
+	double angle_diff_back = fabs(UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(l1.back().pos.a, l2.back().pos.a));
+	double distance_diff_back = hypot(l2.back().pos.y - l1.front().pos.y, l2.back().pos.x - l1.front().pos.x);
+
+	RelativeInfo front_info, back_info;
+	if(bDebug)
+	{
+		PlanningHelpers::GetRelativeInfo(l1, l2.front(), front_info);
+		PlanningHelpers::GetRelativeInfo(l1, l2.back(), back_info);
+	}
+	double total_diff = fabs(l1.back().distanceCost - l2.back().distanceCost);
+
+	// use only direction if total_diff > additional_limit otherwise use the original compare between first and last
+	if((total_diff > additional_limit && angle_diff_front > M_PI_2 && angle_diff_back > M_PI_2) ||
+			(distance_diff_front < distance_limit && distance_diff_back < distance_limit && angle_diff_front > M_PI_2 && angle_diff_back > M_PI_2))
+	{
+//		if(fabs(front_info.perp_distance) < additional_limit ||  fabs(back_info.perp_distance) < additional_limit)
+		if(bDebug)
+		{
+			std::cout << " Lane: " << lane1.id << " Is Opposite of Lane: " << lane2.id << ", With width tolerance: " << distance_limit << std::endl;
+			std::cout << "      Distance Diff (front, back) = (" << distance_diff_front << ", " << distance_diff_back << ")" << std::endl;
+			std::cout << "      Angle Diff deg(front, back) = (" << angle_diff_front*RAD_TO_DEG << ", " << angle_diff_back*RAD_TO_DEG << ")" << std::endl;
+			std::cout << "      Perpendicular (front, back, total_diff) = (" << fabs(front_info.perp_distance) << ", " << fabs(back_info.perp_distance) << ", " << total_diff <<  ")" << std::endl;
+		}
+		return true;
+	}
+	else
+	{
+		if(bDebug)
+		{
+			std::cout << " Lane: " << lane1.id << " Is Not Opposite of Lane: " << lane2.id << ", With width tolerance: " << distance_limit << std::endl;
+			std::cout << "      Distance Diff (front, back) = (" << distance_diff_front << ", " << distance_diff_back << ")" << std::endl;
+			std::cout << "      Angle Diff deg(front, back) = (" << angle_diff_front*RAD_TO_DEG << ", " << angle_diff_back*RAD_TO_DEG << ")" << std::endl;
+			std::cout << "      Perpendicular (front, back, total_diff) = (" << fabs(front_info.perp_distance) << ", " << fabs(back_info.perp_distance) << ", " << total_diff <<  ")" << std::endl;
+		}
+	}
+
+	return false;
+}
+
+bool MappingHelpers::IsPathParallelNoDirection(const std::vector<WayPoint>& path1, const std::vector<WayPoint>& path2, bool use_original_path_without_smoothing, double distance_limit, bool bDebug)
+{
+	bool bParallel = IsPathParallel(path1, path2, use_original_path_without_smoothing, distance_limit, bDebug);
+
+	if(bParallel == true) return true;
+
+	std::vector<WayPoint> l2_inv = path2;
+	std::reverse(l2_inv.begin(), l2_inv.end());
+
+	return IsPathParallel(path1, l2_inv, use_original_path_without_smoothing, distance_limit, bDebug);
+}
+
+bool MappingHelpers::IsPathParallel(const std::vector<WayPoint>& path1, const std::vector<WayPoint>& path2, bool use_original_path_without_smoothing, double distance_limit, bool bDebug)
+{
+	std::vector<WayPoint> l1 = path1;
+	std::vector<WayPoint> l2 = path2;
+
+	PlanningHelpers::CalcAngleAndCost(l1);
+	PlanningHelpers::CalcAngleAndCost(l2);
+
+	if(!use_original_path_without_smoothing)
+	{
+		PlanningHelpers::FixPathDensity(l1, 1.0);
+		PlanningHelpers::FixPathDensity(l2, 1.0);
+
+		PlanningHelpers::SmoothCurveIterationsLimit(l1, 0.5, 10);
+		PlanningHelpers::SmoothCurveIterationsLimit(l2, 0.5, 10);
+
+		PlanningHelpers::CalcAngleAndCost(l1);
+		PlanningHelpers::CalcAngleAndCost(l2);
+	}
+
+	//1: Check the start point and end point that both has same direction and distance is less than the predefined max_distance
+	double angle_diff_front = fabs(UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(l1.front().pos.a, l2.front().pos.a));
+	double distance_diff_front = hypot(l2.front().pos.y - l1.back().pos.y, l2.front().pos.x - l1.back().pos.x);
+
+	double angle_diff_back = fabs(UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(l1.back().pos.a, l2.back().pos.a));
+	double distance_diff_back = hypot(l2.back().pos.y - l1.front().pos.y, l2.back().pos.x - l1.front().pos.x);
+
+	RelativeInfo front_info, back_info;
+	if(bDebug)
+	{
+		PlanningHelpers::GetRelativeInfo(l1, l2.front(), front_info);
+		PlanningHelpers::GetRelativeInfo(l1, l2.back(), back_info);
+	}
+	double total_diff = fabs(l1.back().distanceCost - l2.back().distanceCost);
+
+	if(distance_diff_front < distance_limit && distance_diff_back < distance_limit)
+//	if((total_diff > 2.0 && angle_diff_front > M_PI_2 && angle_diff_back > M_PI_2) ||
+//			(distance_diff_front < distance_limit && distance_diff_back < distance_limit && angle_diff_front > M_PI_2 && angle_diff_back > M_PI_2))
+	{
+//		if(fabs(front_info.perp_distance) < additional_limit ||  fabs(back_info.perp_distance) < additional_limit)
+		if(bDebug)
+		{
+			std::cout << " Path Is Opposite of the other Path With width tolerance: " << distance_limit << std::endl;
+			std::cout << "      Distance Diff (front, back) = (" << distance_diff_front << ", " << distance_diff_back << ")" << std::endl;
+			std::cout << "      Angle Diff deg(front, back) = (" << angle_diff_front*RAD_TO_DEG << ", " << angle_diff_back*RAD_TO_DEG << ")" << std::endl;
+			std::cout << "      Perpendicular (front, back, total_diff) = (" << fabs(front_info.perp_distance) << ", " << fabs(back_info.perp_distance) << ", " << total_diff <<  ")" << std::endl;
+		}
+		return false;
+	}
+	else
+	{
+		if(bDebug)
+		{
+			std::cout << " Path Is Parallel of the other Path With width tolerance: " << distance_limit << std::endl;
+			std::cout << "      Distance Diff (front, back) = (" << distance_diff_front << ", " << distance_diff_back << ")" << std::endl;
+			std::cout << "      Angle Diff deg(front, back) = (" << angle_diff_front*RAD_TO_DEG << ", " << angle_diff_back*RAD_TO_DEG << ")" << std::endl;
+			std::cout << "      Perpendicular (front, back, total_diff) = (" << fabs(front_info.perp_distance) << ", " << fabs(back_info.perp_distance) << ", " << total_diff <<  ")" << std::endl;
+		}
+	}
+
+	return true;
+}
+
+
+/**
+ * This is a slow function used for validation , don't use in realtime calculations
+ * If path size is tow points, add center point to local path copy.
+ * Fix points density to 0.5 meters
+ * Calculate angle and cost for each path
+ * Use the center (mid point) to estimate distance to other path
+ * use function get relative info
+ * return true means the mid point is between the begining and end of the other path
+ * return false if the two paths don't match, in this case perpendicular distance, will be negative and shouldn't be considered
+ */
+
+bool MappingHelpers::GetDistancesBetweenTwoPaths(const std::vector<WayPoint>& path1, const std::vector<WayPoint>& path2, double& perpendicular_distance, double& direct_distance)
+{
+	if(path1.size() < 2 || path2.size() < 2)
+	{
+		std::cout << " In GetDistancesBetweenTwoPaths, Path size is less than two ! " << std::endl;
+	}
+
+	std::vector<WayPoint> l1 = path1;
+	std::vector<WayPoint> l2 = path2;
+
+	if(l1.size() == 2)
+	{
+		GPSPoint p1 = l1.front().pos;
+		GPSPoint p2 = l1.back().pos;
+		l1.insert(l1.begin()+1, WayPoint((p1.x+p2.x)/2.0, (p1.y+p2.y)/2.0, (p1.z+p2.z)/2.0, 0));
+	}
+
+	if(l2.size() == 2)
+	{
+		GPSPoint p1 = l2.front().pos;
+		GPSPoint p2 = l2.back().pos;
+		l2.insert(l2.begin()+1, WayPoint((p1.x+p2.x)/2.0, (p1.y+p2.y)/2.0, (p1.z+p2.z)/2.0, 0));
+	}
+
+	PlanningHelpers::FixPathResolution(l1, 0.5);
+	PlanningHelpers::FixPathResolution(l2, 0.5);
+	PlanningHelpers::CalcAngleAndCost(l1);
+	PlanningHelpers::CalcAngleAndCost(l2);
+
+	WayPoint mid_point_1 = l1.at(l1.size()/2);
+	WayPoint mid_point_2 = l2.at(l2.size()/2);
+
+	RelativeInfo info;
+	PlanningHelpers::GetRelativeInfo(l2, mid_point_1, info);
+	direct_distance = hypot(mid_point_2.pos.y - mid_point_2.pos.y, mid_point_2.pos.y - mid_point_2.pos.y);
+
+	if(info.bAfter == true || info.bBefore == true)
+	{
+		perpendicular_distance = -1;
+		return false;
+	}
+
+	perpendicular_distance = fabs(info.perp_distance);
+	return true;
+}
+
+/**
+ * When left and right lanes are connected using pointers.
+ * But no consideration if the left or right lane is opposite direction or not
+ * This function check spacially if left or right is opposite then it chenge the relation to opposite.
+ * Use only in loading map from KML files
+ */
+void MappingHelpers::FindAndConnectOppositeLanes(RoadNetwork& map, bool bDebug)
+{
+	std::cout << " Find And Connect Opposite Lanes .. " << std::endl;
+
+	for(auto& seg: map.roadSegments)
+	{
+		for(auto& l: seg.Lanes)
+		{
+			if(l.pLeftLane != nullptr)
+			{
+				bool bOpposit = IsLaneOpposite(l, *l.pLeftLane, bDebug);
+				if(bOpposit)
+				{
+					l.oppositeLaneId = l.leftLaneId;
+					l.pOpposite = l.pLeftLane;
+					l.leftLaneId = 0;
+					l.pLeftLane = nullptr;
+				}
+			}
+
+			if(l.pRightLane != nullptr)
+			{
+				bool bOpposit = IsLaneOpposite(l, *l.pRightLane, bDebug);
+				if(bOpposit)
+				{
+					l.oppositeLaneId = l.rightLaneId;
+					l.pOpposite = l.pRightLane;
+					l.rightLaneId = 0;
+					l.pRightLane = nullptr;
+				}
+			}
+		}
+	}
+}
+
+/**
+ * lane connectivity is not required, this is done by geometry based search
+ */
+void MappingHelpers::FindAdjacentLanes(RoadNetwork& map)
+{
+	for(unsigned int rs = 0; rs < map.roadSegments.size(); rs++)
+	{
+		//Link Lanes
+		for(unsigned int i =0; i < map.roadSegments.at(rs).Lanes.size(); i++)
+		{
+			Lane* pL = &map.roadSegments.at(rs).Lanes.at(i);
+			//Link left and right lanes
+			for(unsigned int rs_2 = 0; rs_2 < map.roadSegments.size(); rs_2++)
+			{
+				for(unsigned int i2 =0; i2 < map.roadSegments.at(rs_2).Lanes.size(); i2++)
+				{
+					int iCenter1 = pL->points.size()/2;
+					WayPoint wp_1 = pL->points.at(iCenter1);
+					int iCenter2 = PlanningHelpers::GetClosestNextPointIndexFast(map.roadSegments.at(rs_2).Lanes.at(i2).points, wp_1 );
+					WayPoint closest_p = map.roadSegments.at(rs_2).Lanes.at(i2).points.at(iCenter2);
+					double mid_a1 = wp_1.pos.a;
+					double mid_a2 = closest_p.pos.a;
+					double angle_diff = UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(mid_a1, mid_a2);
+					double distance = distance2points(wp_1.pos, closest_p.pos);
+
+					if(pL->id != map.roadSegments.at(rs_2).Lanes.at(i2).id && angle_diff < 0.05 && distance < 3.5 && distance > 2.5)
+					{
+						double perp_distance = DBL_MAX;
+						if(pL->points.size() > 2 && map.roadSegments.at(rs_2).Lanes.at(i2).points.size()>2)
+						{
+							RelativeInfo info;
+							PlanningHelpers::GetRelativeInfo(pL->points, closest_p, info);
+							perp_distance = info.perp_distance;
+							//perp_distance = PlanningHelpers::GetPerpDistanceToVectorSimple(pL->points.at(iCenter1-1), pL->points.at(iCenter1+1), closest_p);
+						}
+
+						if(perp_distance > 1.0 && perp_distance < 5.0)
+						{
+							pL->pRightLane = &map.roadSegments.at(rs_2).Lanes.at(i2);
+							for(unsigned int i_internal = 0; i_internal< pL->points.size(); i_internal++)
+							{
+								if(i_internal<map.roadSegments.at(rs_2).Lanes.at(i2).points.size())
+								{
+									pL->points.at(i_internal).RightPointId = map.roadSegments.at(rs_2).Lanes.at(i2).id;
+									pL->points.at(i_internal).pRight = &map.roadSegments.at(rs_2).Lanes.at(i2).points.at(i_internal);
+//									map.roadSegments.at(rs_2).Lanes.at(i2).points.at(i_internal).pLeft = &pL->points.at(i_internal);
+								}
+							}
+						}
+						else if(perp_distance < -1.0 && perp_distance > -5.0)
+						{
+							pL->pLeftLane = &map.roadSegments.at(rs_2).Lanes.at(i2);
+							for(unsigned int i_internal = 0; i_internal< pL->points.size(); i_internal++)
+							{
+								if(i_internal<map.roadSegments.at(rs_2).Lanes.at(i2).points.size())
+								{
+									pL->points.at(i_internal).LeftPointId = map.roadSegments.at(rs_2).Lanes.at(i2).id;
+									pL->points.at(i_internal).pLeft = &map.roadSegments.at(rs_2).Lanes.at(i2).points.at(i_internal);
+//									map.roadSegments.at(rs_2).Lanes.at(i2).points.at(i_internal).pRight = &pL->points.at(i_internal);
+								}
+							}
+						}
 					}
 				}
 			}
@@ -1883,6 +2344,45 @@ bool MappingHelpers::IsPointExist(const WayPoint& p, const std::vector<PlannerHN
 	}
  }
 
+ void MappingHelpers::ConnectMissingStopSignToStopLineSpacially(PlannerHNS::RoadNetwork& map)
+ {
+	 for(auto& ss: map.signs)
+	 {
+		 if(ss.signType == STOP_SIGN && ss.stopLineId == 0)
+		 {
+			 StopLine* closest_stopline = nullptr;
+			 double closest_distance = 20; // maximum 20 meters from the line center
+			 for(auto& sl: map.stopLines)
+			 {
+				 if(sl.points.size() > 1)
+				 {
+					 //Calculate stop line midpoint
+					 WayPoint mid_point((sl.points.back().pos.x + sl.points.front().pos.x)/2.0,
+										(sl.points.back().pos.y + sl.points.front().pos.y)/2.0,
+										(sl.points.back().pos.z + sl.points.front().pos.z)/2.0,
+										(sl.points.back().pos.a + sl.points.front().pos.a)/2.0);
+					 double d = distance2points3d(mid_point, ss.pose);
+					 if(d < closest_distance)
+					 {
+						 closest_distance = d;
+						 closest_stopline = &sl;
+					 }
+				 }
+			 }
+
+			 if(closest_stopline != nullptr)
+			 {
+				 ss.stopLineId = closest_stopline->id;
+				 closest_stopline->stopSignId = ss.id;
+			 }
+			 else
+			 {
+
+			 }
+		 }
+	 }
+ }
+
  void MappingHelpers::ConnectMissingStopLinesAndLanes(PlannerHNS::RoadNetwork& map)
  {
 	 for(auto& seg: map.roadSegments)
@@ -1923,6 +2423,10 @@ bool MappingHelpers::IsPointExist(const WayPoint& p, const std::vector<PlannerHN
 			 if(sl.id == tl.stopLineId)
 			 {
 				 InsertUniqueId(sl.lightIds, tl.id);
+				 for(auto& lane_id: sl.laneIds)
+				 {
+					 InsertUniqueId(tl.laneIds, lane_id);
+				 }
 				 break;
 			 }
 		 }
@@ -1951,10 +2455,16 @@ bool MappingHelpers::IsPointExist(const WayPoint& p, const std::vector<PlannerHN
 	{
 		for(auto& ts: map.signs)
 		{
+
 			if(ts.id == sl.stopSignId || ts.groupID == sl.stopSignId)
 			{
 				ts.stopLineId = sl.id;
-				break;
+//				break;
+			}
+
+			if(ts.stopLineId == sl.id)
+			{
+				sl.stopSignId = ts.id;
 			}
 		}
 	}
@@ -2044,25 +2554,6 @@ void MappingHelpers::GetClosestStopLines(const PlannerHNS::RoadNetwork& map, con
 	}
 }
 
-void MappingHelpers::TrimPath(std::vector<PlannerHNS::WayPoint>& points, double trim_angle)
-{
-	if(points.size() < 3) return;
-	std::vector<PlannerHNS::WayPoint> trimed_points;
-	trimed_points.push_back(points.at(0));
-	for(int i = 1 ; i < points.size()-1; i++)
-	{
-		double p1_a = UtilityHNS::UtilityH::SplitPositiveAngle(points.at(i).pos.a);
-		double p2_a = UtilityHNS::UtilityH::SplitPositiveAngle(points.at(i+1).pos.a);
-
-		if(fabs(p2_a - p1_a) > trim_angle)
-		{
-			trimed_points.push_back(points.at(i));
-		}
-	}
-	trimed_points.push_back(points.back());
-	points = trimed_points;
-}
-
 void MappingHelpers::llaToxyz_proj(const std::string& proj_str, const PlannerHNS::WayPoint& origin, const double& lat,
 		const double& lon, const double& alt, double& x_out, double& y_out, double& z_out)
 {
@@ -2084,7 +2575,7 @@ void MappingHelpers::llaToxyz_proj(const std::string& proj_str, const PlannerHNS
 		pj_transform(pj_latlong, pj_utm, 1, 1, &_x, &_y, &_z);
 		y_out = _y + origin.pos.y;
 		x_out = _x + origin.pos.x;
-		z_out = _z + origin.pos.z;
+		z_out = _z;
 	}
 	else
 	{
@@ -2103,7 +2594,7 @@ void MappingHelpers::xyzTolla_proj(const std::string& proj_str, const PlannerHNS
 
 	double _lon = x_in - origin.pos.x;
 	double _lat = y_in - origin.pos.y;
-	double _alt = z_in - origin.pos.z;
+	double _alt = z_in;
 
 	if(pj_latlong != 0 && pj_utm !=0)
 	{
@@ -2465,7 +2956,9 @@ void MappingHelpers::UpdatePointWithProjection(const PlannerHNS::RoadNetwork& ma
 {
 	if(map.str_proj.size() > 8)
 	{
-		xyzTolla_proj(map.str_proj, map.origin, p.pos.x, p.pos.y, p.pos.z, p.pos.lat, p.pos.lon, p.pos.alt);
+		//origin x,y should be negative
+		PlannerHNS::WayPoint rev_origin(-map.origin.pos.x, -map.origin.pos.y, -map.origin.pos.z, -map.origin.pos.a);
+		xyzTolla_proj(map.str_proj, rev_origin, p.pos.x, p.pos.y, p.pos.z, p.pos.lat, p.pos.lon, p.pos.alt);
 	}
 }
 
@@ -2786,5 +3279,38 @@ void MappingHelpers::InsertPointToEndOfPathWithAngleThreshold(const WayPoint& p,
 		}
 	}
 }
+
+std::vector<WayPoint> MappingHelpers::FindFarthestTwoPointsInPolygon(const std::vector<WayPoint>& points)
+{
+	std::vector<WayPoint> line;
+	if(points.size() <= 1) return line;
+
+	double max_distance = -1;
+	for(unsigned int i = 0; i< points.size(); i++)
+	{
+		for(unsigned int j = i+1; i< points.size(); i++)
+		{
+			double d = hypot(points.at(j).pos.y - points.at(i).pos.y, points.at(j).pos.x - points.at(i).pos.x);
+			if(d > max_distance)
+			{
+				max_distance = d;
+				line = {points.at(i), points.at(j)};
+			}
+		}
+	}
+
+	if(max_distance <= 0)
+	{
+		return std::vector<WayPoint>();
+	}
+
+	return line;
+
+}
+
+
+
+
+
 
 } /* namespace PlannerHNS */

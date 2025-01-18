@@ -64,6 +64,7 @@ public:
 	static bool InsertUniqueStringCase(std::vector<std::string>& list, const std::string& str);
 	static bool InsertUniqueStringNoCase(std::vector<std::string>& list, const std::string& str);
 	static bool InsertUniqueInt(std::vector<int>& list, const int& x);
+	static bool CompareStrinNoCase(std::string str1, std::string str2);
 };
 
 class PIDController
@@ -135,6 +136,7 @@ public:
 
 	static int findElements(std::string name, TiXmlElement* parent_element, std::vector<TiXmlElement*>& element_list);
 	static int findFirstElement(std::string name, TiXmlElement* parent_element, std::vector<TiXmlElement*>& element_list);
+	static TiXmlElement* findFirstElement(const std::string& name, TiXmlElement* parent_element);
 	static int getIntAttribute(TiXmlElement* p_elem, std::string name, int def_val = 0);
 	static double getDoubleAttribute(TiXmlElement* p_elem, std::string name, double def_val = 0.0);
 	static std::string getStringAttribute(TiXmlElement* p_elem, std::string name, std::string def_val);

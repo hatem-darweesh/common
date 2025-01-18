@@ -213,6 +213,110 @@ Lane* RoadNetwork::GetLaneById(const OPID& laneId)
 	return nullptr;
 }
 
+Line* RoadNetwork::GetLineById(const OPID& lineId)
+{
+	if(lineId <= 0) return nullptr;
+
+	for(auto& seg: roadSegments)
+	{
+		for(auto& l: seg.lines) {
+			if(l.id == lineId) return &l;
+		}
+	}
+
+	for(auto& l: lines)
+	{
+		if(l.id == lineId) return &l;
+	}
+
+	return nullptr;
+}
+
+Line* RoadNetwork::GetVirtualLineBoundById(const OPID& lineId)
+{
+	if(lineId <= 0) return nullptr;
+
+	for(auto& l: virtual_lane_bounds)
+	{
+			if(l.id == lineId) return &l;
+	}
+	return nullptr;
+}
+
+TrafficLight* RoadNetwork::GetTrafficLightById(const OPID& lightId)
+{
+	if(lightId <= 0) return nullptr;
+
+	for(auto& tl: trafficLights)
+	{
+		if(tl.id == lightId) return &tl;
+	}
+
+	for(auto& seg: roadSegments)
+	{
+		for(auto& tl: seg.trafficLights) {
+			if(tl.id == lightId) return &tl;
+		}
+	}
+	return nullptr;
+}
+
+StopLine* RoadNetwork::GetStopLineById(const OPID& stopLineId)
+{
+	if(stopLineId <= 0) return nullptr;
+
+	for(auto& sl: stopLines)
+	{
+		if(sl.id == stopLineId) return &sl;
+	}
+
+	for(auto& seg: roadSegments)
+	{
+		for(auto& sl: seg.stopLines) {
+			if(sl.id == stopLineId) return &sl;
+		}
+	}
+	return nullptr;
+}
+
+Crossing* RoadNetwork::GetCrossingById(const OPID& crossingId)
+{
+	if(crossingId <= 0) return nullptr;
+
+	for(auto& c: crossings)
+	{
+		if(c.id == crossingId) return &c;
+	}
+
+	for(auto& seg: roadSegments)
+	{
+		for(auto& c: seg.crossings) {
+			if(c.id == crossingId) return &c;
+		}
+	}
+	return nullptr;
+}
+
+
+
+TrafficSign* RoadNetwork::GetSignById(const OPID& signId)
+{
+	if(signId <= 0) return nullptr;
+
+	for(auto& s: signs)
+	{
+		if(s.id == signId) return &s;
+	}
+
+	for(auto& seg: roadSegments)
+	{
+		for(auto& s: seg.signs) {
+			if(s.id == signId) return &s;
+		}
+	}
+	return nullptr;
+}
+
 RoadSegment* RoadNetwork::GetSegmentById(const OPID& roadId)
 {
 	if(roadId <= 0) return nullptr;
@@ -250,6 +354,18 @@ Junction* RoadNetwork::FindJunction(const OPID& connectingRoadId, const OPID& in
 	}
 
 	return nullptr;
+}
+
+void RoadNetwork::ClearMapErrorCode()
+{
+	for(auto& seg: roadSegments)
+	{
+		seg.err_code = ERR_CODE_NOTHING;
+		for(auto& l: seg.Lanes)
+		{
+			l.err_code = ERR_CODE_NOTHING;
+		}
+	}
 }
 
 }

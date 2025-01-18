@@ -18,6 +18,7 @@
 namespace PlannerHNS {
 
 #define distance2points(from , to) sqrt(pow(to.x - from.x, 2) + pow(to.y - from.y, 2))
+#define distance2points3d(from, to) sqrt(pow(to.pos.y - from.pos.y,2) + pow(to.pos.x - from.pos.x,2) + pow(to.pos.z - from.pos.z,2))
 #define db2p(from , to) hypot(to.pos.y - from.pos.y, to.pos.x - from.pos.x)
 #define distance2pointsSqr(from , to) pow(to.x - from.x, 2) + pow(to.y - from.y, 2)
 #define pointNorm(v) sqrt(v.x*v.x + v.y*v.y)
@@ -92,6 +93,9 @@ public:
 	// Just add new point if distance between any two points is bigger than the res distance
 	static void FixPathResolution(std::vector<WayPoint>& path, const double& res);
 
+	//Remove points with the condition that angle is not not greater than trim_angle (avoid cutting corners)
+	static void TrimPath(std::vector<PlannerHNS::WayPoint>& points, double trim_angle);
+
 	static void FixPathDensity(std::vector<GPSPoint>& path, const double& distanceDensity);
 
 	static void SmoothPath(std::vector<WayPoint>& path, double weight_data =0.25,double weight_smooth = 0.25,double tolerance = 0.01);
@@ -113,6 +117,8 @@ public:
 	static int IsCurveSmooth(const std::vector<WayPoint>& curve, double smooth_limit = 0.85);
 
 	static double SmoothCurveDistanceLimit(std::vector<WayPoint>& curve, double smooth_limit = 0.85, double distance_thresh = 0.5);
+
+	static int SmoothCurveDistanceIterationLimit(std::vector<WayPoint>& curve, double distance_thresh = 0.5, int nMaxIterations = 10);
 
 	static void CalcAngleAndCurvatureCost(std::vector<WayPoint>& path);
 
@@ -136,6 +142,9 @@ public:
 			const int& rollOutsNumber, const double& SmoothDataWeight, const double& SmoothWeight,
 			const double& SmoothTolerance, const bool& bHeadingSmooth,
 			std::vector<WayPoint>& sampledPoints);
+
+
+	static void SmoothWidth(std::vector<WayPoint>& path_in, double weight_data, double weight_smooth, double tolerance = 0.01);
 
 	static void SmoothSpeedProfiles(std::vector<WayPoint>& path_in, double weight_data, double weight_smooth, double tolerance	= 0.1);
 
@@ -251,6 +260,10 @@ public:
 
 	static int PointInsidePolygon(const std::vector<WayPoint>& points,const WayPoint& p);
 
+	static bool PointInsideBox(const WayPoint& min, const WayPoint& max, const WayPoint& p);
+
+	static bool PointInsideCube(const WayPoint& min, const WayPoint& max, const WayPoint& p);
+
 	static bool PointInsidePolygonAprrox(const std::vector<WayPoint>& points,const WayPoint& p);
 
 	static void TestQuadraticSpline(const std::vector<WayPoint>& center_line, std::vector<WayPoint>& path);
@@ -278,6 +291,8 @@ static PlannerHNS::EnumString<TRAFFIC_LIGHT_TYPE> TRAFFIC_LIGHT_TYPE_STR(UNKNOWN
 				{RIGHT_GREEN, "Right Green"},
 				{FLASH_YELLOW, "Flash Yellow"},
 				{FLASH_RED, "Flash Red"},
+				{ORANGE_LIGHT, "Orange"},
+				{FLASH_ORANGE, "Flash Orange"},
 		});
 
 } /* namespace PlannerHNS */

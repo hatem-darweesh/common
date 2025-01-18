@@ -28,6 +28,7 @@ catkin_package(
 )
  
  ## set(CMAKE_CXX_FLAGS " -g -Wall -Wno-unused-result ${CMAKE_CXX_FLAGS}")
+ add_definitions(-w)
 
 ###########
 ## Build ##

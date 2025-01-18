@@ -255,6 +255,13 @@ bool UtilityH::InsertUniqueStringCase(std::vector<std::string>& list, const std:
 	return true;
 }
 
+bool UtilityH::CompareStrinNoCase(std::string str1, std::string str2)
+{
+	std::transform(str1.begin(), str1.end(), str1.begin(), ::toupper);
+	std::transform(str2.begin(), str2.end(), str2.begin(), ::toupper);
+	return str1.compare(str2) == 0;
+}
+
 bool UtilityH::InsertUniqueStringNoCase(std::vector<std::string>& list, const std::string& str)
 {
 	std::string to_compare = str;
@@ -758,6 +765,27 @@ int XmlHelpers::findFirstElement(std::string name, TiXmlElement* parent_element,
 	findFirstElement(name, parent_element->NextSiblingElement(), element_list);
 
 	return element_list.size();
+}
+
+TiXmlElement* XmlHelpers::findFirstElement(const std::string& name, TiXmlElement* parent_element)
+{
+    if (parent_element == nullptr) {
+        return nullptr; // Base case: Null element
+    }
+
+    // Check if the current element matches the name
+    if (name == parent_element->Value()) {
+        return parent_element;
+    }
+
+    // Recursively search in the children
+    TiXmlElement* found_in_child = findFirstElement(name, parent_element->FirstChildElement());
+    if (found_in_child != nullptr) {
+        return found_in_child; // Return as soon as we find the first match
+    }
+
+    // If not found in children, search in siblings
+    return findFirstElement(name, parent_element->NextSiblingElement());
 }
 
 int XmlHelpers::getIntAttribute(TiXmlElement* p_elem, std::string name, int def_val )

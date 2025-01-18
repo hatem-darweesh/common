@@ -57,6 +57,12 @@ lanelet::LaneletMapPtr Lanelet2MapLoader::LoadMap(const std::string& fileName, P
 		std::cout << "Using projection string: " << map.str_proj << std::endl;
 		std::cout << "Using origin : " << map.origin.pos.ToString() << std::endl;
 		m_pProjector = new lanelet::projection::MGRSProjector();
+		lanelet::GPSPoint p_origin;
+		p_origin.lat = map.origin.pos.lat;
+		p_origin.lon = map.origin.pos.lon;
+		p_origin.ele = map.origin.pos.alt;
+
+		((lanelet::projection::MGRSProjector*)m_pProjector)->setMGRSCode(p_origin);
 
 	}
 	else
@@ -66,11 +72,11 @@ lanelet::LaneletMapPtr Lanelet2MapLoader::LoadMap(const std::string& fileName, P
 		std::cout << "Using origin : " << map.origin.pos.ToString() << std::endl;
 
 
-		if(fabs(map.origin.pos.lat) < 0.00001 && fabs(map.origin.pos.lon) < 0.00001)
+//		if(fabs(map.origin.pos.lat) < 0.00001 && fabs(map.origin.pos.lon) < 0.00001)
 		{
 			if(map.str_proj.size() > 0)
 			{
-				PlannerHNS::MappingHelpers::xyzTolla_proj(map.str_proj, PlannerHNS::WayPoint(), 0.0, 0.0, 0.0,
+				PlannerHNS::MappingHelpers::xyzTolla_proj(map.str_proj, PlannerHNS::WayPoint(), map.origin.pos.x, map.origin.pos.y, map.origin.pos.z,
 							map.origin.pos.lat, map.origin.pos.lon, map.origin.pos.alt);
 			}
 			else
@@ -80,11 +86,12 @@ lanelet::LaneletMapPtr Lanelet2MapLoader::LoadMap(const std::string& fileName, P
 		}
 
 		m_pProjector = new lanelet::projection::UtmProjector(lanelet::Origin({map.origin.pos.lat, map.origin.pos.lon, map.origin.pos.alt}));
+		std::cout << " Lanelet2 Projector initialized with origin: " << map.origin.pos.lat << ", " << map.origin.pos.lon << std::endl;
 	}
 
 	try
 	{
-		m_pL2Map = lanelet::load(fileName, "autoware_osm_handler", *m_pProjector, &errors);
+		m_pL2Map = lanelet::load(fileName, "osm_handler", *m_pProjector, &errors);
 		lanelet::utils::overwriteLaneletsCenterline(m_pL2Map, false);
 		lanelet::traffic_rules::TrafficRulesPtr trafficRules = lanelet::traffic_rules::TrafficRulesFactory::create(lanelet::Locations::Germany, lanelet::Participants::Vehicle);
 		m_RoutingGraph = lanelet::routing::RoutingGraph::build(*m_pL2Map, *trafficRules);
@@ -465,7 +472,7 @@ void Lanelet2MapLoader::FromLaneletToRoadNetwork(lanelet::LaneletMapPtr l2_map,
 
 void Lanelet2MapLoader::CreateWayPointsFromLineString(const PlannerHNS::RoadNetwork& map, std::vector<PlannerHNS::WayPoint>& points, lanelet::ConstLineString3d& line_string, lanelet::Projector* proj, int lane_id)
 {
-	for(auto& p : line_string )
+	for(auto p : line_string )
 	{
 		//std::cout << "Size of Point: " << p.id() << ", " <<  "( " << p.x() << ", " << p.y() << ", " << p.z() << ")" << std::endl;
 		PlannerHNS::WayPoint wp;
@@ -473,6 +480,7 @@ void Lanelet2MapLoader::CreateWayPointsFromLineString(const PlannerHNS::RoadNetw
 		wp.id = PlannerHNS::RoadNetwork::g_max_point_id;
 		wp.laneId = lane_id;
 		wp.iOriginalIndex = points.size();
+//		wp.pos = UpdatePointWithProjection(map, proj, p);
 
 		wp.pos.x = p.x();
 		wp.pos.y = p.y();
@@ -569,8 +577,6 @@ void Lanelet2MapLoader::CreateWayPointsFromPolygon(const PlannerHNS::RoadNetwork
 		points.push_back(wp);
 	}
 }
-
-
 
 std::vector<PlannerHNS::TrafficLight> Lanelet2MapLoader::CreateTrafficLightsFromLanelet2(const PlannerHNS::RoadNetwork& map, lanelet::AutowareTrafficLightConstPtr& tl_let, lanelet::Projector* proj, int lane_id)
 {
@@ -1158,6 +1164,33 @@ void Lanelet2MapLoader::PrintExistingAttributes()
 	{
 		std::cout << "Type: " << unique_types.at(i) << ", SubType: " << unique_subtypes.at(i) << std::endl;
 	}
+}
+
+PlannerHNS::GPSPoint Lanelet2MapLoader::UpdatePointWithProjection(const PlannerHNS::RoadNetwork& map, lanelet::Projector* p_proj, const lanelet::ConstPoint3d& p)
+{
+
+	PlannerHNS::GPSPoint wp;
+//	wp.x = map.origin.pos.x - p.attributes().at("local_x").value();
+//	wp.y = map.origin.pos.y - p.attributes().at("local_y").value();
+//	wp.z = p.attributes().at("ele").value();
+//
+//	wp.lat = p.basicPoint().x();
+//	wp.lon = p.basicPoint().y();
+//	wp.alt = wp.z;
+
+	return wp;
+
+//	if(map.str_proj.size() > 8)
+//	{
+//		lanelet::GPSPoint gps_p;
+//		PlannerHNS::WayPoint neg_origin(-map.origin.pos.x, -map.origin.pos.y, map.origin.pos.z, 0);
+//		PlannerHNS::MappingHelpers::xyzTolla_proj(map.str_proj, neg_origin, p.x(), p.y(), p.z(), gps_p.lat, gps_p.lon, gps_p.ele);
+//
+//		if(p_proj != nullptr)
+//		{
+//			p.basicPoint() = p_proj->forward(gps_p);
+//		}
+//	}
 }
 
 } /* namespace PlannerHNS */

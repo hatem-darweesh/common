@@ -1058,8 +1058,22 @@ std::vector<WayPoint> KmlMapLoader::GetCenterLaneDataVer0(TiXmlElement* pElem, c
 	return gps_points;
 }
 
+int KmlMapLoader::GetSingleIDFromPrefix(const std::string& str, const std::string& prefix, const std::string& postfix, int default_value)
+{
+	std::vector<int> ids = GetIDsFromPrefix(str, prefix, postfix);
+	if(ids.size() > 0)
+	{
+		return ids.front();
+	}
+
+	return default_value;
+}
+
 std::vector<int> KmlMapLoader::GetIDsFromPrefix(const std::string& str, const std::string& prefix, const std::string& postfix)
 {
+	std::vector<int> ids;
+	if(str.size() == 0) return ids;
+
 	int index1 = str.find(prefix)+prefix.size();
 	int index2 = str.find(postfix, index1);
 	if(index2 < 0  || postfix.size() ==0)
@@ -1067,32 +1081,58 @@ std::vector<int> KmlMapLoader::GetIDsFromPrefix(const std::string& str, const st
 
 	std::string str_ids = str.substr(index1, index2-index1);
 
-	std::vector<int> ids;
 	std::vector<std::string> idstr = SplitString(str_ids, "_");
 
 	for(unsigned  int i=0; i< idstr.size(); i++ )
 	{
 		if(idstr.at(i).size()>0)
 		{
-			int num = atoi(idstr.at(i).c_str());
-			//if(num>-1)
+			try
+			{
+				int num = std::stoi(idstr.at(i));
+				//if(num>-1)
 				ids.push_back(num);
+			}
+			catch(std::exception& e)
+			{
+//				std::cout << e.what() << std::endl;
+				break;
+			}
 		}
 	}
 
 	return ids;
 }
 
+std::string KmlMapLoader::GetSingleStringsFromPrefix(const std::string& str, const std::string& prefix, const std::string& postfix, std::string default_value)
+{
+	std::vector<std::string> values = GetStringsFromPrefix(str, prefix, postfix);
+	if(values.size() == 0) return default_value;
+
+	std::string single_value;
+	for(auto& s: values)
+	{
+		single_value += s;
+	}
+
+	return single_value;
+}
+
 std::vector<std::string> KmlMapLoader::GetStringsFromPrefix(const std::string& str, const std::string& prefix, const std::string& postfix)
 {
+	std::vector<std::string> ids;
+	if(str.size() == 0) return ids;
+
 	int index1 = str.find(prefix)+prefix.size();
+	if(prefix.size()==0)
+		index1 = 0;
+
 	int index2 = str.find(postfix, index1);
-	if(index2 < 0  || postfix.size() ==0)
+	if(index2 < 0  || postfix.size() == 0)
 		index2 = str.size();
 
 	std::string str_ids = str.substr(index1, index2-index1);
 
-	std::vector<std::string> ids;
 	std::vector<std::string> idstr = SplitString(str_ids, "_");
 
 	for(unsigned  int i=0; i< idstr.size(); i++ )
@@ -1106,8 +1146,110 @@ std::vector<std::string> KmlMapLoader::GetStringsFromPrefix(const std::string& s
 	return ids;
 }
 
+std::string KmlMapLoader::GetStringFromPrefixV2(const std::string& str, const std::string& prefix, const std::string& postfix, std::string def_value)
+{
+	if(str.size() == 0) return def_value;
+
+
+	std::size_t index1 = str.find(prefix);
+
+	if(prefix.size() == 0)
+		index1 = 0;
+
+	if(index1 == std::string::npos)
+		return def_value;
+
+	index1 += prefix.size();
+
+	std::size_t index2 = str.find(postfix, index1);
+
+	if(postfix.size() == 0)
+		index2 = str.size()-1;
+
+	if(index2 == std::string::npos)
+		return def_value;
+
+	std::string str_found = str.substr(index1, index2-index1);
+
+	if(str_found.size() == 0) return def_value;
+
+	return str_found;
+}
+
+double KmlMapLoader::GetDoubleFromPrefixV2(const std::string& str, const std::string& prefix, const std::string& postfix, double def_value)
+{
+	if(str.size() == 0) return def_value;
+
+	std::size_t index1 = str.find(prefix);
+
+	if(prefix.size() == 0)
+		index1 = 0;
+
+	if(index1 == std::string::npos)
+		return def_value;
+
+	index1 += prefix.size();
+
+	std::size_t index2 = str.find(postfix, index1);
+
+	if(postfix.size() == 0)
+		index2 = str.size()-1;
+
+	if(index2 == std::string::npos)
+		return def_value;
+
+	std::string str_found = str.substr(index1, index2-index1);
+
+	if(str_found.size() == 0) return def_value;
+
+	return std::stod(str_found);
+}
+
+int KmlMapLoader::GetIntFromPrefixV2(const std::string& str, const std::string& prefix, const std::string& postfix, int def_value)
+{
+	if(str.size() == 0) return def_value;
+
+	std::size_t index1 = str.find(prefix);
+
+	if(prefix.size() == 0)
+		index1 = 0;
+
+	if(index1 == std::string::npos)
+		return def_value;
+
+	index1 += prefix.size();
+
+	std::size_t index2 = str.find(postfix, index1);
+
+	if(postfix.size() == 0)
+		index2 = str.size()-1;
+
+	if(index2 == std::string::npos)
+		return def_value;
+
+	std::string str_found = str.substr(index1, index2-index1);
+
+	if(str_found.size() == 0) return def_value;
+
+	return std::stoi(str_found);
+}
+
+double KmlMapLoader::GetSingleDoubleFromPrefix(const std::string& str, const std::string& prefix, const std::string& postfix, double default_value)
+{
+	std::vector<double> values = GetDoubleFromPrefix(str, prefix, postfix);
+	if(values.size() > 0)
+	{
+		return values.front();
+	}
+
+	return default_value;
+}
+
 std::vector<double> KmlMapLoader::GetDoubleFromPrefix(const std::string& str, const std::string& prefix, const std::string& postfix)
 {
+	std::vector<double> ids;
+	if(str.size() == 0) return ids;
+
 	int index1 = str.find(prefix)+prefix.size();
 	int index2 = str.find(postfix, index1);
 	if(index2 < 0  || postfix.size() ==0)
@@ -1115,16 +1257,23 @@ std::vector<double> KmlMapLoader::GetDoubleFromPrefix(const std::string& str, co
 
 	std::string str_ids = str.substr(index1, index2-index1);
 
-	std::vector<double> ids;
 	std::vector<std::string> idstr = SplitString(str_ids, "_");
 
 	for(unsigned  int i=0; i< idstr.size(); i++ )
 	{
 		if(idstr.at(i).size()>0)
 		{
-			double num = atof(idstr.at(i).c_str());
-			//if(num>-1)
+			try
+			{
+				double num = std::stod(idstr.at(i));
+				//if(num>-1)
 				ids.push_back(num);
+			}
+			catch(std::exception& e)
+			{
+//				std::cout << e.what() << std::endl;
+				break;
+			}
 		}
 	}
 
@@ -1133,6 +1282,9 @@ std::vector<double> KmlMapLoader::GetDoubleFromPrefix(const std::string& str, co
 
 std::pair<ACTION_TYPE, double> KmlMapLoader::GetActionPairFromPrefix(const std::string& str, const std::string& prefix, const std::string& postfix)
 {
+	std::pair<ACTION_TYPE, double> act_cost;
+	if(str.size() == 0) return act_cost;
+
 	int index1 = str.find(prefix)+prefix.size();
 	int index2 = str.find(postfix, index1);
 	if(index2<0  || postfix.size() ==0)
@@ -1140,7 +1292,6 @@ std::pair<ACTION_TYPE, double> KmlMapLoader::GetActionPairFromPrefix(const std::
 
 	std::string str_ids = str.substr(index1, index2-index1);
 
-	std::pair<ACTION_TYPE, double> act_cost;
 	act_cost.first = FORWARD_ACTION;
 	act_cost.second = 0;
 

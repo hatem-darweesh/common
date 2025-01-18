@@ -1502,6 +1502,24 @@ void PlanningHelpers::CreateManualBranch(std::vector<WayPoint>& path, const int&
 
 }
 
+void PlanningHelpers::TrimPath(std::vector<PlannerHNS::WayPoint>& points, double trim_angle)
+{
+	if(points.size() < 3) return;
+	std::vector<PlannerHNS::WayPoint> trimed_points;
+	trimed_points.push_back(points.at(0));
+	for(int i = 1 ; i < points.size()-1; i++)
+	{
+		double angle_diff = UtilityHNS::UtilityH::AngleBetweenTwoAnglesPositive(points.at(i).pos.a, points.at(i+1).pos.a);
+
+		if(fabs(angle_diff) > trim_angle)
+		{
+			trimed_points.push_back(points.at(i));
+		}
+	}
+	trimed_points.push_back(points.back());
+	points = trimed_points;
+}
+
 /**
  * Just add new point if distance between any two points is bigger than the res distance
  * Doesn't reduce resolution , only increase it.
@@ -1524,6 +1542,7 @@ void PlanningHelpers::FixPathResolution(std::vector<WayPoint>& path, const doubl
 				PlannerHNS::WayPoint center_p = p1;
 				center_p.pos.x = (p2.pos.x + p1.pos.x)/2.0;
 				center_p.pos.y = (p2.pos.y + p1.pos.y)/2.0;
+				center_p.pos.z = (p2.pos.z + p1.pos.z)/2.0;
 				fixedPath.push_back(center_p);
 				bChange = true;
 			}
@@ -1964,6 +1983,31 @@ double PlanningHelpers::SmoothCurveDistanceLimit(std::vector<WayPoint>& curve, d
 	}
 
 	return d_diff;
+}
+
+/**
+* Smooth until smoothing threshold reached
+* distance_thresh is the maximum change length of the curve after smoothing
+* nIterations is the maximum number of applying smooth to the path before giving up
+* the function will return the actual number of iterations
+*/
+int PlanningHelpers::SmoothCurveDistanceIterationLimit(std::vector<WayPoint>& curve, double distance_thresh, int nMaxIterations)
+{
+	if(curve.size() < 3) return 0;
+
+	CalcAngleAndCost(curve);
+	double initial_d = curve.back().distanceCost;
+	double d_diff = 0.0;
+	int iterations = 0;
+	while(d_diff < distance_thresh && iterations < nMaxIterations)
+	{
+		SmoothPath(curve, 0.48, 0.1, 0.05);
+		CalcAngleAndCost(curve);
+		d_diff = fabs(initial_d - curve.back().distanceCost);
+		iterations++;
+	}
+
+	return iterations;
 }
 
 /**
@@ -2565,6 +2609,38 @@ std::vector<int> PlanningHelpers::GetUniqueLeftRightIds(const std::vector<WayPoi
 		 }
 	 }
 	return sideLanes;
+}
+
+
+/**
+ * Use Conjugate Gradient for width only
+ */
+void PlanningHelpers::SmoothWidth(std::vector<WayPoint>& path_in, double weight_data, double weight_smooth, double tolerance)
+{
+	if (path_in.size() <= 1)
+		return;
+	vector<WayPoint> newpath = path_in;
+
+	double change = tolerance;
+	double xtemp = 0;
+	int nIterations = 0;
+	int size = newpath.size();
+
+	while (change >= tolerance)
+	{
+		change = 0.0;
+		for (int i = 1; i < size -1; i++)
+		{
+			xtemp = newpath[i].width;
+			newpath[i].width += weight_data * (path_in[i].width - newpath[i].width);
+			newpath[i].width += weight_smooth * (newpath[i - 1].width + newpath[i + 1].width - (2.0 * newpath[i].width));
+			change += fabs(xtemp - newpath[i].width);
+
+		}
+		nIterations++;
+	}
+
+	path_in = newpath;
 }
 
 /**
@@ -4133,6 +4209,22 @@ int PlanningHelpers::PointInsidePolygon(const std::vector<GPSPoint>& points,cons
             return 0;
           else
             return 1;
+}
+
+bool PlanningHelpers::PointInsideBox(const WayPoint& min, const WayPoint& max, const WayPoint& p)
+{
+	if(p.pos.x < max.pos.x && p.pos.y < max.pos.y && p.pos.z < max.pos.z &&
+			p.pos.x >= min.pos.x && p.pos.y >= min.pos.y && p.pos.z >= min.pos.z)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+bool PlanningHelpers::PointInsideCube(const WayPoint& min, const WayPoint& max, const WayPoint& p)
+{
+	return PointInsideBox(min, max, p);
 }
 
 int PlanningHelpers::PointInsidePolygon(const std::vector<WayPoint>& points,const WayPoint& p)

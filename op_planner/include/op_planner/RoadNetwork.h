@@ -58,6 +58,23 @@ enum MAP_SOURCE_FORMAT
 	MAP_LANELET2
 };
 
+/**
+ * Error code assigned with each Map Item, it should be assigned after running validation and verification functions.
+ * It help in collective reporting and use during visualization of the Map to set special color to defected Map Item
+ */
+enum ERROR_CODE
+{
+	ERR_CODE_NOTHING = 0,
+	ERR_CODE_ERROR = 1,
+	ERR_CODE_WARNING = 2,
+	ERR_CODE_FROM_TO_CONNECTION_MISSING = 3,
+	ERR_CODE_MISSING_INFO = 4,
+	ERR_CODE_WRONG_CONNECTION = 5,
+	ERR_CODE_MANY_2_MANY_CONNECTION = 6,
+	ERR_CODE_SIDE_CONNECTION_MISSING = 3,
+
+};
+
 enum FORWARD_JUNCTION_TYPE
 {
 	// Junction Type
@@ -76,6 +93,10 @@ enum OBSTACLE_TYPE {SIDEWALK, TREE, CAR, TRUCK, HOUSE, PEDESTRIAN, CYCLIST, GENE
 enum DRIVABLE_TYPE {DIRT, TARMAC, PARKINGAREA, INDOOR, GENERAL_AREA};
 
 enum GLOBAL_STATE_TYPE {G_WAITING_STATE, G_PLANING_STATE, G_FORWARD_STATE, G_BRANCHING_STATE, G_FINISH_STATE};
+
+enum VIRTUAL_LINE_TYPE {VL_SHOULDER, VL_EDGE, VL_BARRIER, VL_LINE};
+
+enum VIRTUAL_BOUNDARY_TYPE {VL_AREA, VL_BUILDING};
 
 enum STATE_TYPE {INITIAL_STATE = 0,
 	WAITING_STATE = 1,
@@ -109,12 +130,16 @@ enum SEGMENT_TYPE {NORMAL_ROAD_SEG, INTERSECTION_ROAD_SEG, UTURN_ROAD_SEG, EXIT_
 
 enum RoadSegmentType {NORMAL_ROAD, INTERSECTION_ROAD, UTURN_ROAD, EXIT_ROAD, MERGE_ROAD, HIGHWAY_ROAD};
 
+enum INTERSECTION_TYPE {INTERSECTION_DEFAULT, INTERSECTION_T, INTERSECTION_Y, INTERSECTION_STAGGERED, INTERSECTION_CROSSROADS, INTERSECTION_GRADE_SEPARATED, INTERSECTION_SIGNALIZED, INTERSECTION_UNSIGNALIZED, INTERSECTION_RAILROAD}; // Junction Type
+
 enum BOUNDARY_TYPE {NORMAL_ROAD_BOUNDARY, INTERSECTION_BOUNDARY, CROSSING_BOUNDARY, UTURN__BOUNDARY,
 	EXIT_ROAD_BOUNDARY, MERGE_ROAD_BOUNDARY, HIGHWAY_BOUNDARY, PARKING_BOUNDARY, FREE_SPACE_BOUNDARY,
 	VEGETATION_BOUNDARY, KEEP_OUT_BOUNDARY, BUILDING_BOUNDARY, TRAFFIC_ISLAN_BOUNDARY, WALK_WAY_BOUNDARY,
-	SHARED_WALK_WAY_BOUNDARY, EXIT_BOUNDARY};
+	SHARED_WALK_WAY_BOUNDARY, EXIT_BOUNDARY,
+	SEGMENT_BOUNDARY, GORE_AREA, CONSTRUCTION_AREA, CONSTRUCTION_CONE, LIGHT_POLE, MAIL_BOX, BRIDGE_AREA,
+	RAILWAY_CROSSING_AREA, DITCH_AREA, SIDEWALK_AREA, DRIVEWAY_AREA};
 
-enum MARKING_TYPE {UNKNOWN_MARK, TEXT_MARK, AF_MARK, AL_MARK, AR_MARK, AFL_MARK, AFR_MARK, ALR_MARK, UTURN_MARK, NOUTURN_MARK, POLYGON_MARK};
+enum MARKING_TYPE {UNKNOWN_MARK, TEXT_MARK, AF_MARK, AL_MARK, AR_MARK, AFL_MARK, AFR_MARK, ALR_MARK, UTURN_MARK, NOUTURN_MARK, POLYGON_MARK, AFLR_MARK};
 
 enum LaneType{
 	NONE_LANE, //not defined
@@ -149,18 +174,20 @@ enum CustomBehaviorType{CUSTOM_AVOIDANCE_DISABLED = 0, CUSTOM_AVOIDANCE_ENABLED 
 enum MARKING_COLOR{MARK_WHITE, MARK_YELLOW, MARK_RED, MARK_ORANG, MARK_BLUE, MARK_GREEN};
 
 enum LINE_TYPE{DOTTED_LINE, SOLID_LINE, DOUBLE_DOTTED_LINE, DOUBLE_SOLID_LINE, SHOULDER_LINE, LINE_STOP_LINE,
-	LINE_RUMBLE_STRIP, LINE_GIVE_WAY, LINE_NOT_DEFINED, LINE_HATCH, LINE_PARKING_ENVELOPE, LINE_EDGE, LINE_BUS_LANE, LINE_NO_PASSING, LINE_CROSSING_LINE
-};
+	LINE_RUMBLE_STRIP, LINE_GIVE_WAY, LINE_NOT_DEFINED, LINE_HATCH, LINE_PARKING_ENVELOPE, LINE_EDGE, LINE_BUS_LANE, LINE_NO_PASSING, LINE_CROSSING_LINE,
+	LINE_GUARDRAIL_LINE, LINE_VIRTUAL_LINE, DASHED_SOLID_LINE, SOLID_DASHED_LINE};
 
-enum TRAFFIC_SIGN_TYPE {UNKNOWN_SIGN, STOP_SIGN, MAX_SPEED_SIGN, MIN_SPEED_SIGN, NO_PARKING_SIGN, SCHOOL_CROSSING_SIGN};
+enum TRAFFIC_SIGN_TYPE {UNKNOWN_SIGN, STOP_SIGN, MAX_SPEED_SIGN, MIN_SPEED_SIGN, NO_PARKING_SIGN, SCHOOL_CROSSING_SIGN, YIELD_SIGN};
 
-enum TRAFFIC_LIGHT_TYPE {UNKNOWN_LIGHT=0, RED_LIGHT=1, GREEN_LIGHT=2, YELLOW_LIGHT=3, CROSS_GREEN=4, CROSS_RED=5, LEFT_GREEN=6, FORWARD_GREEN=7, RIGHT_GREEN=8, FLASH_YELLOW=9, FLASH_RED=10};
+enum TRAFFIC_LIGHT_TYPE {UNKNOWN_LIGHT=0, RED_LIGHT=1, GREEN_LIGHT=2, YELLOW_LIGHT=3, CROSS_GREEN=4, CROSS_RED=5, LEFT_GREEN=6, FORWARD_GREEN=7, RIGHT_GREEN=8, FLASH_YELLOW=9, FLASH_RED=10, ORANGE_LIGHT=11, FLASH_ORANGE=12};
 
 class Lane;
 class TrafficLight;
 class RoadSegment;
 class Boundary;
 class Line;
+class VirtualLine;
+class VirtualBoundary;
 
 
 class ObjTimeStamp
@@ -202,12 +229,15 @@ public:
 		dir = 0;
 	}
 
-	std::string ToString()
+	std::string ToString(const bool& bGPS = true)
 	{
 		std::stringstream str;
 		str.precision(12);
 		str << "X:" << x << ", Y:" << y << ", Z:" << z << ", A:" << a << std::endl;
-		str << "Lon:" << lon << ", Lat:" << lat << ", Alt:" << alt << ", Dir:" << dir << std::endl;
+		if(bGPS)
+		{
+			str << "Lon:" << lon << ", Lat:" << lat << ", Alt:" << alt << ", Dir:" << dir << std::endl;
+		}
 		return str.str();
 	}
 };
@@ -218,10 +248,9 @@ class RECTANGLE
 public:
   GPSPoint bottom_left;
   GPSPoint top_right;
-  double width;
-  double length;
-  bool bObstacle;
-
+  double width = 0;
+  double length = 0;
+  bool bObstacle = false;
 
   inline bool PointInRect(GPSPoint p)
   {
@@ -242,7 +271,20 @@ public:
   {
 	  width=0;
 	  length = 0;
-    bObstacle = true;
+	  bObstacle = true;
+  }
+
+  RECTANGLE(GPSPoint top_left, GPSPoint bottom_right)
+  {
+	  bottom_left = top_left;
+	  bottom_left.x = top_left.x;
+	  bottom_left.y = bottom_right.y;
+	  bottom_left.z = bottom_right.z;
+
+	  top_right = bottom_right;
+	  top_right.x = bottom_right.x;
+	  top_right.y = top_left.y;
+	  top_right.z = top_left.z;
   }
 
   virtual ~RECTANGLE(){}
@@ -638,13 +680,39 @@ public:
 	int id;
 	int roadId;
 	BOUNDARY_TYPE type;
+	INTERSECTION_TYPE junction_type;
 	std::vector<WayPoint> points;
 	WayPoint center;
 	RoadSegment* pRoad;
 
 	Boundary()
 	{
+		junction_type = INTERSECTION_DEFAULT;
 		type = NORMAL_ROAD_BOUNDARY;
+		id    = 0;
+		roadId =0;
+		pRoad = nullptr;
+	}
+
+	void clearPointers()
+	{
+		this->pRoad = nullptr;
+	}
+};
+
+class VirtualBoundary //represent wayarea in vector map
+{
+public:
+	int id;
+	int roadId;
+	VIRTUAL_BOUNDARY_TYPE type;
+	std::vector<WayPoint> points;
+	WayPoint center;
+	RoadSegment* pRoad;
+
+	VirtualBoundary()
+	{
+		type = VL_AREA;
 		id    = 0;
 		roadId =0;
 		pRoad = nullptr;
@@ -710,6 +778,7 @@ public:
 	}
 };
 
+// Can represent both Stop Line and Yield Line (Give Way Line), by default it is stop line
 class StopLine
 {
 public:
@@ -722,6 +791,10 @@ public:
 	std::vector<WayPoint> points;
 	Lane* pLane;
 	OPID linkID;
+	double width;
+	MARKING_COLOR color;
+	LINE_TYPE type;
+
 
 	RoadSegment * pRoad;
 
@@ -734,6 +807,9 @@ public:
 		stopSignId = -1;
 		linkID = 0;
 		pRoad = nullptr;
+		width = 0.1;
+		color = MARK_WHITE;
+		type = LINE_STOP_LINE;
 	}
 
 	void clearPointers()
@@ -781,6 +857,7 @@ public:
 	double vertical_angle;
 	WayPoint pose;
 	TRAFFIC_SIGN_TYPE signType;
+	std::string signTypeStr;
 	double value;
 	double fromValue;
 	double toValue;
@@ -788,6 +865,9 @@ public:
 	timespec timeValue;
 	timespec fromTimeValue;
 	timespec toTimeValue;
+	double width;
+	double height;
+	int linkID;
 
 	std::vector<Lane*> pLanes;
 	Lane* pLane;
@@ -797,6 +877,7 @@ public:
 
 	TrafficSign()
 	{
+		linkID = -1;
 		id    		= 0;
 		roadId		= 0;
 		groupID     = 0;
@@ -808,6 +889,8 @@ public:
 		pLane 		= nullptr;
 		horizontal_angle = 0;
 		vertical_angle = 0;
+		width = 0.25; //meter
+		height = 0.25; //meter
 		pRoad = nullptr;
 	}
 
@@ -831,8 +914,11 @@ public:
 	OPID linkID;
 	OPID stopLineId; // for lanelet2 matching
 	OPID groupID;
-	double horizontal_angle;
-	double vertical_angle;
+	double horizontal_angle; //in degrees
+	double vertical_angle; //in degrees
+	double width;
+	double height;
+	std::string direction_str;
 
 	RoadSegment * pRoad;
 
@@ -846,6 +932,8 @@ public:
 		lightType	= GREEN_LIGHT;
 		linkID 		= 0;
 		stopLineId  = 0;
+		width = 0.25; //meter
+		height = 0.25; //meter
 		pRoad = nullptr;
 	}
 
@@ -908,6 +996,8 @@ public:
 	OPID areaId;
 	OPID leftLaneId;
 	OPID rightLaneId;
+	OPID leftBoundId;
+	OPID rightBoundId;
 	OPID oppositeLaneId;
 	OPID fromAreaId;
 	OPID toAreaId;
@@ -917,6 +1007,8 @@ public:
 	double speed;
 	double length;
 	LaneType type;
+	MARKING_TYPE dir_type;
+	bool bBidirectional;
 	OPID junctionId;
 	FORWARD_JUNCTION_TYPE junctionType;
 	double width;
@@ -925,6 +1017,7 @@ public:
 	std::vector<TrafficLight> trafficlights;
 	std::vector<StopLine> stopLines;
 	WaitingLine waitingLine;
+	ERROR_CODE err_code;
 
 	std::vector<Lane*> fromLanes;
 	std::vector<Lane*> toLanes;
@@ -936,12 +1029,15 @@ public:
 
 	Lane()
 	{
+		bBidirectional = false;
+		err_code = ERR_CODE_NOTHING;
 		lane_change = 0;
 		id = 0;
 		num	= 1; // zero is for the central lane
 		speed = 0;
 		length = 0;
 		type = NORMAL_LANE;
+		dir_type = MARKING_TYPE::UNKNOWN_MARK;
 		junctionId = -1;
 		width = 0;
 		pLeftLane = nullptr;
@@ -952,6 +1048,8 @@ public:
 		areaId = 0;
 		leftLaneId = 0;
 		rightLaneId = 0;
+		leftBoundId = 0;
+		rightBoundId = 0;
 		oppositeLaneId = 0;
 		fromAreaId = 0;
 		toAreaId = 0;
@@ -977,6 +1075,26 @@ public:
 		return nullptr;
 	}
 
+	bool IsBranchingLane()
+	{
+		if(fromIds.size() > 1 || fromLanes.size() > 1 ||
+				toIds.size() > 1 || toLanes.size() > 1) return true;
+
+		return false;
+	}
+
+	bool IsConnectedLaneToFrom()
+	{
+		if(fromIds.size() > 0 && toIds.size() > 0) return true;
+		return false;
+	}
+
+	bool IsConnectedLaneSide()
+	{
+		if(leftLaneId > 0 || rightLaneId > 0 || oppositeLaneId > 0) return true;
+		return false;
+	}
+
 };
 
 class RoadSegment
@@ -997,15 +1115,21 @@ public:
 	std::vector<StopLine> stopLines;
 	std::vector<Curb> curbs;
 	std::vector<Boundary> boundaries;
+//	std::vector<VirtualBoundary> virtual_boundaries;
 	std::vector<Crossing> crossings;
 	std::vector<Marking> markings;
 	std::vector<TrafficSign> signs;
 	std::vector<Line> lines;
+//	std::vector<VirtualLine> virtual_lines;
+
+	ERROR_CODE err_code;
+
 
 	std::vector<WayPoint> referenceLine; // use in the OpenDRIVE conversion
 
 	RoadSegment()
 	{
+		err_code = ERR_CODE_NOTHING;
 		id = -1;
 		junctionID = -1;
 		roadType = NORMAL_ROAD_SEG;
@@ -1025,14 +1149,20 @@ public:
 		return nullptr;
 	}
 
-	Lane* GetLaneById(OPID _id)
-	{
-		if(_id <= 0) return nullptr;
+//	Lane* GetLaneById(OPID _id)
+//	{
+//		if(_id <= 0) return nullptr;
+//
+//		for(auto& l: Lanes) {
+//			if(l.id == _id) return &l;
+//		}
+//		return nullptr;
+//	}
 
-		for(auto& l: Lanes) {
-			if(l.id == _id) return &l;
-		}
-		return nullptr;
+	bool IsConnectedSegmentFromTo()
+	{
+		if(fromIds.size() > 0 && toIds.size() > 0) return true;
+		return false;
 	}
 };
 
@@ -1044,6 +1174,7 @@ public:
 	MARKING_COLOR color;
 	LINE_TYPE type;
 	int original_type;
+	int lane_change;
 	OPID roadID;
 	std::vector<WayPoint> points;
 	std::vector<OPID> left_lane_ids;
@@ -1062,6 +1193,7 @@ public:
 		color = MARK_WHITE;
 		type = DOTTED_LINE;
 		original_type = 0;
+		lane_change = 0;
 		pRoad = nullptr;
 	}
 
@@ -1069,6 +1201,31 @@ public:
 	{
 		this->left_lanes.clear();
 		this->right_lanes.clear();
+	}
+};
+
+class VirtualLine
+{
+public:
+	OPID id;
+	double width;
+	VIRTUAL_LINE_TYPE type;
+	OPID roadID;
+	std::vector<WayPoint> points;
+	RoadSegment * pRoad;
+
+	VirtualLine()
+	{
+		id = 0;
+		width = 0;
+		roadID = 0;
+		type = VL_SHOULDER;
+		pRoad = nullptr;
+	}
+
+	void clearPointers()
+	{
+		pRoad = nullptr;
 	}
 };
 
@@ -1142,7 +1299,10 @@ public:
 	std::vector<Marking> markings;
 	std::vector<TrafficSign> signs;
 	std::vector<Line> lines;
+	std::vector<Line> virtual_lane_bounds;
 	std::vector<Junction> junctions;
+	std::vector<VirtualBoundary> virtual_boundaries;
+	std::vector<VirtualLine> virtual_lines;
 
 	bool bLeftHand;
 	std::string str_proj;
@@ -1206,10 +1366,17 @@ public:
 	void ReplaceRoadIdWith(const OPID& old_id, const OPID& id);
 	Lane* GetLaneByWaypointId(const OPID& wp_id);
 	Lane* GetLaneById(const OPID& laneId);
+	Line* GetLineById(const OPID& lineId);
+	Line* GetVirtualLineBoundById(const OPID& lineId);
+	TrafficLight* GetTrafficLightById(const OPID& lightId);
+	StopLine* GetStopLineById(const OPID& stopLineId);
+	Crossing* GetCrossingById(const OPID& crossingId);
+	TrafficSign* GetSignById(const OPID& signId);
 	WayPoint* GetWayPointById(const OPID& pointId);
 	RoadSegment* GetSegmentById(const OPID& roadId);
 	RoadSegment* GetSegmentByLaneId(const OPID& laneId);
 	Junction* FindJunction(const OPID& connectingRoadId, const OPID& incommingRoadId);
+	void ClearMapErrorCode();
 };
 
 class VehicleState : public ObjTimeStamp
@@ -1926,7 +2093,11 @@ static EnumString<LINE_TYPE> LineTypesStr(DOTTED_LINE,
 		{LINE_BUS_LANE, "Bus Lane"},
 		{LINE_NO_PASSING, "No Passing Line"},
 		{LINE_NOT_DEFINED, "N//A"},
-		{LINE_CROSSING_LINE, "Crossing"}
+		{LINE_CROSSING_LINE, "Crossing"},
+		{LINE_GUARDRAIL_LINE, "GuardRail Line"},
+		{LINE_VIRTUAL_LINE, "Virtual"},
+		{DASHED_SOLID_LINE, "Broken Solid"},
+		{SOLID_DASHED_LINE, "Solid Broken"},
 });
 
 static EnumString<MARKING_COLOR> MarkColorsStr(MARK_WHITE,
@@ -1957,8 +2128,8 @@ static EnumString<BOUNDARY_TYPE> BOUNDARY_TYPE_STR(NORMAL_ROAD_BOUNDARY,
 				{EXIT_ROAD_BOUNDARY, "Road exit"},
 				{MERGE_ROAD_BOUNDARY, "Merge"},
 				{HIGHWAY_BOUNDARY, "Highway"},
-				{PARKING_BOUNDARY, "Parking"},
-				{FREE_SPACE_BOUNDARY, "Free space"},
+				{PARKING_BOUNDARY, "parking"},
+				{FREE_SPACE_BOUNDARY, "Freespace"},
 				{VEGETATION_BOUNDARY, "Vegetation"},
 				{KEEP_OUT_BOUNDARY, "Keep out"},
 				{BUILDING_BOUNDARY, "Building"},
@@ -1966,6 +2137,17 @@ static EnumString<BOUNDARY_TYPE> BOUNDARY_TYPE_STR(NORMAL_ROAD_BOUNDARY,
 				{WALK_WAY_BOUNDARY, "Walkway"},
 				{SHARED_WALK_WAY_BOUNDARY, "Sharedway"},
 				{EXIT_BOUNDARY, "Exit"},
+				{SEGMENT_BOUNDARY, "Segment"},
+				{GORE_AREA, "Gore"},
+				{CONSTRUCTION_AREA, "ConstructionArea"},
+				{CONSTRUCTION_CONE, "ConstructionCone"},
+				{LIGHT_POLE, "LightPole"},
+				{MAIL_BOX, "MailBox"},
+				{BRIDGE_AREA, "Bridge"},
+				{RAILWAY_CROSSING_AREA, "RailwayCrossing"},
+				{DITCH_AREA, "Ditch"},
+				{SIDEWALK_AREA, "SideWalk"},
+				{DRIVEWAY_AREA, "Driveway"},
 		});
 
 
@@ -1982,6 +2164,20 @@ static EnumString<MARKING_TYPE> MARKING_TYPE_STR(UNKNOWN_MARK,
 				{UTURN_MARK, "uturn"},
 				{NOUTURN_MARK, "no_uturn"},
 				{POLYGON_MARK, "polygon"},
+				{AFLR_MARK, "arrow_forward_left_right"},
+		});
+
+static EnumString<INTERSECTION_TYPE> INTERSECTION_TYPE_STR(INTERSECTION_DEFAULT,
+		{
+				{INTERSECTION_DEFAULT, "Junction"},
+				{INTERSECTION_T, "T-Junction"},
+				{INTERSECTION_Y, "Y-Intersection"},
+				{INTERSECTION_STAGGERED, "Staggered"},
+				{INTERSECTION_CROSSROADS, "CrossRoads"},
+				{INTERSECTION_GRADE_SEPARATED, "Grade-Separated"},
+				{INTERSECTION_SIGNALIZED, "Signalized"},
+				{INTERSECTION_UNSIGNALIZED, "Unsignalized"},
+				{INTERSECTION_RAILROAD, "Railroad"},
 		});
 
 }

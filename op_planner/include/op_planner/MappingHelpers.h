@@ -43,8 +43,18 @@ public:
 	static WayPoint* GetClosestBackWaypointFromMap(const WayPoint& pos, RoadNetwork& map);
 	static WayPoint GetFirstWaypoint(RoadNetwork& map);
 	static WayPoint* GetLastWaypoint(RoadNetwork& map);
+
+	static bool IsLaneOpposite(const Lane& lane1, const Lane& lane2, bool bDebug = false);
+	static bool IsPathParallel(const std::vector<WayPoint>& path1, const std::vector<WayPoint>& path2, bool use_original_path_without_smoothing, double distance_limit = 5, bool bDebug = false);
+	static bool IsPathParallelNoDirection(const std::vector<WayPoint>& path1, const std::vector<WayPoint>& path2, bool use_original_path_without_smoothing, double distance_limit = 5, bool bDebug = false);
+	static bool GetDistancesBetweenTwoPaths(const std::vector<WayPoint>& path1, const std::vector<WayPoint>& path2, double& perpendicular_distance, double& direct_distance);
+
+	/**
+	 * The lanes should be connected by left and right ids and pointers.
+	 */
+	static void FindAndConnectOppositeLanes(RoadNetwork& map, bool bDebug = false);
+
 	static void FindAdjacentLanes(RoadNetwork& map);
-	static void FindAdjacentLanesV2(RoadNetwork& map, const double& min_d = 1.2, const double& max_d = 3.5);
 	/**
 	 *
 	 *
@@ -55,6 +65,10 @@ public:
 	 * @param max_d
 	 */
 	static void FindAdjacentSingleLane(RoadNetwork& map, const OPID& lane_id, const int& dir,  const double& min_d = 1.2, const double& max_d = 3.5);
+
+	static void FindAdjacentLanesV2(RoadNetwork& map, const double& min_d = 1.2, const double& max_d = 3.5);
+
+	static std::vector<WayPoint> FindFarthestTwoPointsInPolygon(const std::vector<WayPoint>& points);
 
 	static void ConnectBoundariesToWayPoints(RoadNetwork& map);
 
@@ -93,10 +107,18 @@ public:
 	static void ConnectTrafficSignsAndStopLines(PlannerHNS::RoadNetwork& map);
 
 	static void ConnectMissingStopLinesAndLanes(PlannerHNS::RoadNetwork& map);
+	static void ConnectMissingStopSignToStopLineSpacially(PlannerHNS::RoadNetwork& map);
+
+	static void FixRedundantPoints(std::vector<WayPoint>& points, int path_min_size = 3, double max_distance = 0.00001);
+	static void FixTwoPointsPoints(std::vector<WayPoint>& points);
 
 	static void FixRedundantPointsLanes(std::vector<Lane>& lanes);
 	static void FixTwoPointsLanes(std::vector<Lane>& lanes);
 	static void FixTwoPointsLane(Lane& lanes);
+
+	static void FixRedundantPointsLines(std::vector<Line>& lines);
+	static void FixTwoPointsLines(std::vector<Line>& lines);
+	static void FixTwoPointsLine(Line& l);
 	static void FixUnconnectedLanes(std::vector<Lane>& lanes, const int& max_angle_diff = 90);
 	/**
 	 * Any distance between consecutive lanes is bigger than 0.25 will be filled by the last point
@@ -112,13 +134,12 @@ public:
 	 */
 	static void StitchLanes(PlannerHNS::RoadNetwork& map, const double& min_stitching_distance = 0.25, const double& max_stitching_distance = 4.0);
 
-	static void TrimPath(std::vector<PlannerHNS::WayPoint>& points, double trim_angle);
-
 	static void InsertWayPointToBackOfLane(const WayPoint& wp, Lane& lane, int& global_id);
 	static void InsertWayPointToFrontOfLane(const WayPoint& wp, Lane& lane, int& global_id);
 	static void InsertPointToEndOfPathWithAngleThreshold(const WayPoint& p, std::vector<WayPoint>& path, double max_angle = M_PI_2);
 
 	static void LinkLanesPointers(PlannerHNS::RoadNetwork& map);
+	static void LinkLanesPointersV2(PlannerHNS::RoadNetwork& map);
 	static void LinkLaneChangeWaypointsPointers(PlannerHNS::RoadNetwork& map);
 
 	static void GetMapMaxIds(PlannerHNS::RoadNetwork& map);
