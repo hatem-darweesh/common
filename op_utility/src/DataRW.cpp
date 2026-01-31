@@ -291,7 +291,7 @@ bool SimpleReaderBase::ReadSingleLine(vector<vector<string> >& line)
 {
 	if(!m_File.is_open() || m_File.eof())
 	{
-		std::cout << "SimpleReaderBase: IsOpen: " << m_File.is_open() << ", IsEOF: " << m_File.eof() << std::endl;
+		// std::cout << "SimpleReaderBase: IsOpen: " << m_File.is_open() << ", IsEOF: " << m_File.eof() << std::endl;
 		return false;
 	}
 
