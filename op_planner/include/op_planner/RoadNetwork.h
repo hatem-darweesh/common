@@ -683,6 +683,7 @@ public:
 	BOUNDARY_TYPE type;
 	INTERSECTION_TYPE junction_type;
 	std::vector<WayPoint> points;
+	std::vector<OPID> laneIds;
 	WayPoint center;
 	RoadSegment* pRoad;
 
