@@ -48,17 +48,73 @@ public:
 	 */
 	static int CheckForEndOfPaths(const std::vector<std::vector<PlannerHNS::WayPoint> >& paths, const PlannerHNS::WayPoint& currPose, const double& end_range_distance);
 
+	/**
+	 * @brief Base function. Finds the closest segment on a single trajectory and computes the lateral/longitudinal
+	 *        relationship of point p relative to it. Uses a pure distance-based closest-point search.
+	 *        Fills: perp_distance (signed lateral offset), to_front_distance, from_back_distance, perp_point, angle_diff.
+	 *        No boundary detection — bBefore/bAfter are NOT set.
+	 * @param trajectory  Input path (must have >= 2 points).
+	 * @param p           Query waypoint whose relative position is computed.
+	 * @param info        Output: filled RelativeInfo struct.
+	 * @param prevIndex   Optional hint index to speed up the closest-point search.
+	 * @return true on success, false if trajectory has fewer than 2 points.
+	 */
 	static bool GetRelativeInfo(const std::vector<WayPoint>& trajectory, const WayPoint& p, RelativeInfo& info, const int& prevIndex = 0);
 
+	/**
+	 * @brief Direction + boundary variant. Combines heading-aware closest-point search with boundary detection.
+	 *        Uses GetClosestNextPointIndexDirectionFast (favours points ahead in the vehicle's heading) and
+	 *        additionally sets info.bBefore = true if p is before the trajectory start, and
+	 *        info.bAfter = true if p has passed the trajectory end (angle check > 90 deg from last segment).
+	 *        Special handling for 2-point trajectories: inserts a synthetic midpoint to improve accuracy.
+	 * @param trajectory  Input path (must have >= 2 points).
+	 * @param p           Query waypoint whose relative position is computed.
+	 * @param info        Output: filled RelativeInfo struct, including bBefore/bAfter boundary flags.
+	 * @param prevIndex   Optional hint index to speed up the closest-point search.
+	 * @return true on success, false if trajectory has fewer than 2 points.
+	 */
 	static bool GetRelativeInfoDirectionLimited(const std::vector<WayPoint>& trajectory, const WayPoint& p, RelativeInfo& info, const int& prevIndex = 0);
 
 	/**
-	 *
+	 * @brief Limited (boundary-aware) variant of the base function. Identical geometry to GetRelativeInfo but
+	 *        additionally sets info.bBefore = true if p is before the trajectory start, and
+	 *        info.bAfter = true if p has passed the trajectory end (angle check > 90 deg from last segment).
+	 *        Uses pure distance-based closest-point search (no heading consideration).
+	 *        Special handling for 2-point trajectories: inserts a synthetic midpoint to improve accuracy.
+	 * @param trajectory  Input path (must have >= 2 points).
+	 * @param p           Query waypoint whose relative position is computed.
+	 * @param info        Output: filled RelativeInfo struct, including bBefore/bAfter boundary flags.
+	 * @param prevIndex   Optional hint index to speed up the closest-point search.
+	 * @return true on success, false if trajectory has fewer than 2 points.
 	 */
 	static bool GetRelativeInfoLimited(const std::vector<WayPoint>& trajectory, const WayPoint& p, RelativeInfo& info, const int& prevIndex = 0);
 
+	/**
+	 * @brief Direction-aware variant of the base function. Identical geometry to GetRelativeInfo but uses
+	 *        GetClosestNextPointIndexDirectionFast which favours trajectory points that are ahead in the
+	 *        vehicle's direction of travel, avoiding mis-matching behind the vehicle on curved paths.
+	 *        No boundary detection — bBefore/bAfter are NOT set.
+	 * @param trajectory  Input path (must have >= 2 points).
+	 * @param p           Query waypoint whose relative position is computed.
+	 * @param info        Output: filled RelativeInfo struct.
+	 * @param prevIndex   Optional hint index to speed up the closest-point search.
+	 * @return true on success, false if trajectory has fewer than 2 points.
+	 */
 	static bool GetRelativeInfoDirection(const std::vector<WayPoint>& trajectory, const WayPoint& p, RelativeInfo& info, const int& prevIndex =0);
 
+	/**
+	 * @brief Multi-trajectory variant. Calls GetRelativeInfo on every trajectory in the set, filters out
+	 *        candidates whose heading differs from p by more than 75 degrees (opposite/perpendicular lanes),
+	 *        then selects the best match:
+	 *          - if searchDistance > 0: the candidate within searchDistance with the lowest laneChangeCost;
+	 *          - if searchDistance <= 0: the candidate with the smallest absolute perp_distance.
+	 *        Sets info.iGlobalPath to the index of the winning trajectory.
+	 * @param trajectories   Set of candidate paths (e.g. all drivable lanes).
+	 * @param p              Query waypoint.
+	 * @param searchDistance Lateral search band (metres). Use 0 to simply pick the nearest trajectory.
+	 * @param info           Output: RelativeInfo for the best-matching trajectory; iGlobalPath is set.
+	 * @return true if at least one valid candidate was found, false otherwise.
+	 */
 	static bool GetRelativeInfoRange(const std::vector<std::vector<WayPoint> >& trajectories, const WayPoint& p, const double& searchDistance, RelativeInfo& info);
 
 	static WayPoint GetFollowPointOnTrajectory(const std::vector<WayPoint>& trajectory, const RelativeInfo& init_p, const double& distance, unsigned int& point_index);
